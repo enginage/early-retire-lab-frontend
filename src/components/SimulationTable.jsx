@@ -21,7 +21,7 @@ export default function SimulationTable({ data }) {
                     조기 은퇴 시뮬레이션
                 </h2>
                 <div className='text-sm text-wealth-muted hidden sm:block'>
-                    * 모든 금액은 세전 기준입니다.
+                    * 세금과 건강보험료를 고려하지 않았습니다.
                 </div>
             </div>
             <div className="w-full overflow-x-auto">

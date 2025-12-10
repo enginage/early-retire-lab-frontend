@@ -5,10 +5,12 @@ export const calculateProjection = (
     targetReturnRate,
     additionalInvestment,
     additionalInvestmentReturnRate,
-    targetClosingBalance
+    targetClosingBalance,
+    additionalInvestmentGrowthRate = 0
 ) => {
     const data = [];
     let currentBalance = initialBalance;
+    let currentAdditionalInvestment = additionalInvestment;
     let year = startYear;
     let age = startAge;
 
@@ -20,7 +22,7 @@ export const calculateProjection = (
         const openingReturn = Math.round(openingBalance * (targetReturnRate / 100));
         const openingPlusProfit = openingBalance + openingReturn;
 
-        const addInv = Math.round(additionalInvestment);
+        const addInv = Math.round(currentAdditionalInvestment);
         const addInvReturn = Math.round(addInv * (additionalInvestmentReturnRate / 100));
         const addInvPlusProfit = addInv + addInvReturn;
 
@@ -45,6 +47,8 @@ export const calculateProjection = (
         }
 
         currentBalance = closingBalance;
+        // Increase additional investment for the next year
+        currentAdditionalInvestment = currentAdditionalInvestment * (1 + additionalInvestmentGrowthRate / 100);
         year++;
         age++;
     }

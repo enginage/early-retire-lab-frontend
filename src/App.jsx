@@ -9,9 +9,10 @@ function App() {
     startAge: 40,
     initialBalance: 200000000,
     targetReturnRate: 20.0,
-    additionalInvestment: 24000000,
+    additionalInvestment: 20000000,
     additionalInvestmentReturnRate: 10.0,
     targetClosingBalance: 1000000000,
+    additionalInvestmentGrowthRate: 0,
   });
 
   const [simulationData, setSimulationData] = useState([]);
@@ -26,6 +27,7 @@ function App() {
       additionalInvestment: Number(inputs.additionalInvestment) || 0,
       additionalInvestmentReturnRate: Number(inputs.additionalInvestmentReturnRate) || 0,
       targetClosingBalance: Number(inputs.targetClosingBalance) || 0,
+      additionalInvestmentGrowthRate: Number(inputs.additionalInvestmentGrowthRate) || 0,
     };
 
     const data = calculateProjection(
@@ -35,7 +37,8 @@ function App() {
       validInputs.targetReturnRate,
       validInputs.additionalInvestment,
       validInputs.additionalInvestmentReturnRate,
-      validInputs.targetClosingBalance
+      validInputs.targetClosingBalance,
+      validInputs.additionalInvestmentGrowthRate
     );
     setSimulationData(data);
   }, [inputs]);

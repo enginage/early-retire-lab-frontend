@@ -97,16 +97,21 @@ export default function InputForm({ inputs, handleChange }) {
                     onChange={handleChange}
                     suffix="%"
                 />
-                <div className="lg:col-span-2">
-                    <InputField
-                        label="최종 목표 자산 (Closing Balance)"
-                        name="targetClosingBalance"
-                        value={inputs.targetClosingBalance}
-                        onChange={handleChange}
-                        suffix="원"
-                        isCurrency={true}
-                    />
-                </div>
+                <InputField
+                    label="추가 투자금 인상률"
+                    name="additionalInvestmentGrowthRate"
+                    value={inputs.additionalInvestmentGrowthRate}
+                    onChange={handleChange}
+                    suffix="%"
+                />
+                <InputField
+                    label="최종 목표 자산 (Closing Balance)"
+                    name="targetClosingBalance"
+                    value={inputs.targetClosingBalance}
+                    onChange={handleChange}
+                    suffix="원"
+                    isCurrency={true}
+                />
             </div>
         </div>
     );
