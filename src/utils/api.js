@@ -6,10 +6,12 @@ export const API_BASE_URL = envApiUrl && envApiUrl.trim() !== ''
   ? envApiUrl.trim() 
   : 'http://localhost:8000';
 
-// 디버깅용: 환경 변수 로드 확인
-if (import.meta.env.DEV) {
-  console.log('API_BASE_URL:', API_BASE_URL);
-  console.log('VITE_API_BASE_URL env:', import.meta.env.VITE_API_BASE_URL);
+// 디버깅용: 환경 변수 로드 확인 (프로덕션에서도 확인 가능)
+console.log('[API Config] API_BASE_URL:', API_BASE_URL);
+console.log('[API Config] VITE_API_BASE_URL from env:', import.meta.env.VITE_API_BASE_URL || '(not set)');
+if (!import.meta.env.VITE_API_BASE_URL) {
+  console.warn('[API Config] ⚠️ VITE_API_BASE_URL is not set. Using default: http://localhost:8000');
+  console.warn('[API Config] Please set VITE_API_BASE_URL in Vercel environment variables and redeploy.');
 }
 
 // API 엔드포인트 헬퍼 함수
