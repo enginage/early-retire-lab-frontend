@@ -1,7 +1,16 @@
 // API 기본 URL 설정
 // 개발 환경: http://localhost:8000
 // 프로덕션: Vercel 환경 변수에서 가져옴
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const envApiUrl = import.meta.env.VITE_API_BASE_URL;
+export const API_BASE_URL = envApiUrl && envApiUrl.trim() !== '' 
+  ? envApiUrl.trim() 
+  : 'http://localhost:8000';
+
+// 디버깅용: 환경 변수 로드 확인
+if (import.meta.env.DEV) {
+  console.log('API_BASE_URL:', API_BASE_URL);
+  console.log('VITE_API_BASE_URL env:', import.meta.env.VITE_API_BASE_URL);
+}
 
 // API 엔드포인트 헬퍼 함수
 export const getApiUrl = (endpoint) => {
