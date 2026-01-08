@@ -6,15 +6,15 @@ import CommonCode from './CommonCode';
 import FinancialInstitution from './FinancialInstitution';
 import DomesticETF from './DomesticETF';
 import USAETF from './USAETF';
-import ExperienceLabSettings from './ExperienceLabSettings';
+import InvestmentIndicatorsSettings from './InvestmentIndicatorsSettings';
 
 const MENUS = [
   { key: 'basic', label: '기본설정' },
-  { key: 'experience-lab', label: '체험실 설정' },
+  { key: 'investment-indicators-settings', label: '투자지표 설정' },
   { key: 'commoncode', label: '공통코드' },
   { key: 'financial', label: '금융기관' },
-  { key: 'domestic-etf', label: '국내ETF' },
-  { key: 'usa-etf', label: '미국ETF' },
+  { key: 'domestic-etf', label: '국내 ETF' },
+  { key: 'usa-etf', label: '미국 ETF' },
 ];
 
 function Settings() {
@@ -41,8 +41,8 @@ function Settings() {
     switch (activeMenu) {
       case 'basic':
         return <BasicSettings />;
-      case 'experience-lab':
-        return <ExperienceLabSettings />;
+      case 'investment-indicators-settings':
+        return <InvestmentIndicatorsSettings />;
       case 'commoncode':
         return <CommonCode />;
       case 'financial':

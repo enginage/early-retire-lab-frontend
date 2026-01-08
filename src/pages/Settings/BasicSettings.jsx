@@ -5,7 +5,7 @@ function BasicSettings() {
 
   const tabs = [
     { id: 'general', label: '일반 설정' },
-    { id: 'investment', label: '투자지표' },
+    // { id: 'investment', label: '투자지표' },
   ];
 
   return (

@@ -86,7 +86,7 @@ function DataGrid({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+      <table className="w-full border-collapse" style={{ tableLayout: 'auto', width: '100%' }}>
         <thead>
           <tr className="border-b border-gray-700">
             {showRowNumber && (
@@ -95,10 +95,10 @@ function DataGrid({
             {columns.map((col, index) => (
               <th
                 key={col.key}
-                className={`text-center py-3 px-4 text-wealth-muted font-medium whitespace-nowrap ${
+                className={`text-center py-3 px-4 text-wealth-muted font-medium break-words ${
                   index < columns.length - 1 || showActions ? 'border-r border-gray-700/50' : ''
                 }`}
-                style={col.width ? { width: col.width } : {}}
+                style={col.width ? { width: col.width } : (!showRowNumber && !showActions) ? { width: `${100 / columns.length}%` } : {}}
               >
                 {col.label}
               </th>
@@ -170,10 +170,10 @@ function DataGrid({
                     return (
                       <td
                         key={col.key}
-                        className={`py-3 px-4 text-white text-sm ${
+                        className={`py-3 px-4 text-white text-sm break-words ${
                           col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
                         } ${colIndex < columns.length - 1 || showActions ? 'border-r border-gray-700/50' : ''}`}
-                        style={col.width ? { width: col.width } : {}}
+                        style={col.width ? { width: col.width } : (!showRowNumber && !showActions) ? { width: `${100 / columns.length}%` } : {}}
                       >
                         {cellContent}
                       </td>

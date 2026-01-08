@@ -37,7 +37,18 @@ export const API_ENDPOINTS = {
   
   // ETFs
   DOMESTIC_ETFS: '/api/v1/domestic-etfs',
+  DOMESTIC_ETFS_DAILY_CHART: '/api/v1/domestic-etfs-daily-chart',
+  DOMESTIC_ETFS_DIVIDEND: '/api/v1/domestic-etfs-dividend',
   USA_ETFS: '/api/v1/usa-etfs',
+  USA_ETFS_DAILY_CHART: '/api/v1/usa-etfs-daily-chart',
+  USA_ETFS_DIVIDEND: '/api/v1/usa-etfs-dividend',
+  USD_KRW_EXCHANGE: '/api/v1/usd-krw-exchange',
+  
+  // Indicators
+  USA_INDICATORS: '/api/v1/usa-indicators',
+  
+  // Income Targets
+  INCOME_TARGETS: '/api/v1/income-targets',
   
   // Accounts
   ISA_ACCOUNTS: '/api/v1/isa-accounts',
@@ -59,8 +70,5 @@ export const API_ENDPOINTS = {
   
   // Income Targets
   INCOME_TARGETS: '/api/v1/income-targets',
-  
-  // Experience Lab
-  EXPERIENCE_LAB_STOCKS: '/api/v1/experience-lab-stocks',
 };
 

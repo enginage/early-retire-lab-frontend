@@ -18,49 +18,59 @@ const TopNav = () => {
       label: '체험실',
       path: '/experience-lab',
       submenus: [
-        { key: 'early-retirement', label: '조기은퇴 시뮬레이션', path: '/experience-lab?menu=early-retirement' },
+        { key: 'early-retirement', label: '조기 은퇴 시뮬레이션', path: '/experience-lab?menu=early-retirement' },
+        { key: 'domestic-high-dividend', label: '국내 고배당 ETF 시뮬레이션', path: '/experience-lab?menu=domestic-high-dividend' },
+        { key: 'usa-high-dividend', label: '미국 고배당 ETF 시뮬레이션', path: '/experience-lab?menu=usa-high-dividend' },
       ],
     },
-    {
-      key: 'financial-status',
-      label: '재무상태',
-      path: '/financial-status',
-      submenus: [
-        { key: 'expense', label: '월평균지출', path: '/financial-status?menu=expense' },
-        { key: 'isa', label: 'ISA', path: '/financial-status?menu=isa' },
-        { key: 'pension-fund', label: '연금저축펀드', path: '/financial-status?menu=pension-fund' },
-        { key: 'irp', label: 'IRP', path: '/financial-status?menu=irp' },
-      ],
-    },
-    {
-      key: 'target-setting',
-      label: '시드모으기',
-      path: '/target-setting',
-      submenus: [
-        { key: 'initial-setting', label: '조기은퇴 필요자산', path: '/target-setting?menu=initial-setting' },
-        { key: 'isa-optimization', label: 'ISA 수익 최적화', path: '/target-setting?menu=isa-optimization' },
-        { key: 'income', label: '소득목표', path: '/target-setting?menu=income' },
-      ],
-    },
-    {
-      key: 'settings',
-      label: '환경설정',
-      path: '/settings',
-      submenus: [
-        { key: 'basic', label: '기본설정', path: '/settings?menu=basic' },
-        { key: 'experience-lab', label: '체험실 설정', path: '/settings?menu=experience-lab' },
-        { key: 'commoncode', label: '공통코드', path: '/settings?menu=commoncode' },
-        { key: 'financial', label: '금융기관', path: '/settings?menu=financial' },
-        { key: 'domestic-etf', label: '국내ETF', path: '/settings?menu=domestic-etf' },
-        { key: 'usa-etf', label: '미국ETF', path: '/settings?menu=usa-etf' },
-      ],
-    },
-    {
-      key: 'free-living',
-      label: '자유롭게살기',
-      path: '/free-living',
-      submenus: [],
-    },
+    // {
+    //   key: 'investment-indicators',
+    //   label: '투자지표',
+    //   path: '/investment-indicators',
+    //   submenus: [
+    //     { key: 'usa-market-indicators', label: '미국시장지표', path: '/investment-indicators?menu=usa-market-indicators' },
+    //   ],
+    // },
+    // {
+    //   key: 'financial-status',
+    //   label: '재무상태',
+    //   path: '/financial-status',
+    //   submenus: [
+    //     { key: 'expense', label: '월평균지출', path: '/financial-status?menu=expense' },
+    //     { key: 'isa', label: 'ISA', path: '/financial-status?menu=isa' },
+    //     { key: 'pension-fund', label: '연금저축펀드', path: '/financial-status?menu=pension-fund' },
+    //     { key: 'irp', label: 'IRP', path: '/financial-status?menu=irp' },
+    //   ],
+    // },
+    // {
+    //   key: 'target-setting',
+    //   label: '시드모으기',
+    //   path: '/target-setting',
+    //   submenus: [
+    //     { key: 'initial-setting', label: '조기은퇴 필요자산', path: '/target-setting?menu=initial-setting' },
+    //     { key: 'isa-optimization', label: 'ISA 수익 최적화', path: '/target-setting?menu=isa-optimization' },
+    //     { key: 'income', label: '소득목표', path: '/target-setting?menu=income' },
+    //   ],
+    // },
+    // {
+    //   key: 'settings',
+    //   label: '환경설정',
+    //   path: '/settings',
+    //   submenus: [
+    //     { key: 'basic', label: '기본설정', path: '/settings?menu=basic' },
+    //     { key: 'investment-indicators-settings', label: '투자지표 설정', path: '/settings?menu=investment-indicators-settings' },
+    //     { key: 'commoncode', label: '공통코드', path: '/settings?menu=commoncode' },
+    //     { key: 'financial', label: '금융기관', path: '/settings?menu=financial' },
+    //     { key: 'domestic-etf', label: '국내 ETF', path: '/settings?menu=domestic-etf' },
+    //     { key: 'usa-etf', label: '미국 ETF', path: '/settings?menu=usa-etf' },
+    //   ],
+    // },
+    // {
+    //   key: 'free-living',
+    //   label: '자유롭게살기',
+    //   path: '/free-living',
+    //   submenus: [],
+    // },
   ];
 
   const isActive = (path) => {
@@ -100,29 +110,26 @@ const TopNav = () => {
         const clickedElement = event.target;
         const isInsideMobileMenu = mobileMenuRef.current && mobileMenuRef.current.contains(clickedElement);
         
-        // 모바일 메뉴 내부의 Link 클릭은 무시 (네비게이션이 실행되도록)
+        // 모바일 메뉴 내부 클릭은 무시 (서브메뉴 토글 및 네비게이션 실행되도록)
         if (isInsideMobileMenu) {
-          const clickedLink = clickedElement.closest('a');
-          if (clickedLink) {
-            return; // Link 클릭은 외부 클릭으로 처리하지 않음
-          }
+          return; // 모바일 메뉴 내부의 모든 클릭은 외부 클릭으로 처리하지 않음
         }
         
         // 모바일 메뉴 외부 클릭 시 닫기
-        if (!isInsideMobileMenu) {
-          const hamburgerButton = document.querySelector('.mobile-menu-button');
-          if (hamburgerButton && !hamburgerButton.contains(clickedElement)) {
-            closeMobileMenu();
-          }
+        const hamburgerButton = document.querySelector('.mobile-menu-button');
+        if (hamburgerButton && !hamburgerButton.contains(clickedElement)) {
+          closeMobileMenu();
         }
       }
 
-      // 데스크톱 드롭다운 처리
-      const isOutside = Object.values(dropdownRefs.current).every(
-        (ref) => ref && !ref.contains(event.target)
-      );
-      if (isOutside && openDropdown) {
-        closeDropdown();
+      // 데스크톱 드롭다운 처리 (모바일이 아닐 때만)
+      if (!isMobileMenuOpen) {
+        const isOutside = Object.values(dropdownRefs.current).every(
+          (ref) => ref && !ref.contains(event.target)
+        );
+        if (isOutside && openDropdown) {
+          closeDropdown();
+        }
       }
     };
 
@@ -137,12 +144,29 @@ const TopNav = () => {
   }, [openDropdown, isMobileMenuOpen]);
 
   // 현재 경로에 따라 활성 드롭다운 설정
+  // 서브메뉴가 활성화되어 있으면 드롭다운을 자동으로 열지 않음
   useEffect(() => {
     const activeMenu = menuItems.find((item) => isActive(item.path));
-    if (activeMenu && activeMenu.submenus.length > 0) {
-      setOpenDropdown(activeMenu.key);
+    if (activeMenu && activeMenu.submenus && activeMenu.submenus.length > 0) {
+      // 현재 활성화된 서브메뉴가 있는지 확인
+      const hasActiveSubmenu = activeMenu.submenus.some(
+        (submenu) =>
+          location.pathname === activeMenu.path &&
+          new URLSearchParams(location.search).get('menu') === submenu.key
+      );
+      
+      // 서브메뉴가 활성화되어 있지 않을 때만 드롭다운 자동 열기
+      if (!hasActiveSubmenu) {
+        setOpenDropdown(activeMenu.key);
+      } else {
+        // 서브메뉴가 활성화되어 있으면 드롭다운 닫기
+        setOpenDropdown(null);
+      }
+    } else {
+      // 활성 메뉴가 없거나 서브메뉴가 없으면 드롭다운 닫기
+      setOpenDropdown(null);
     }
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   // 경로 변경 시 모바일 메뉴 닫기
   useEffect(() => {
@@ -160,7 +184,10 @@ const TopNav = () => {
     return (
       <div className="mobile-submenu">
         <button
-          onClick={() => toggleDropdown(item.key)}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleDropdown(item.key);
+          }}
           className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${
             isItemActive
               ? 'text-wealth-gold'
@@ -200,6 +227,7 @@ const TopNav = () => {
                     e.stopPropagation();
                     // 메뉴 닫기 (네비게이션은 Link가 자동으로 처리)
                     closeMobileMenu();
+                    closeDropdown(); // 데스크톱 드롭다운도 닫기
                   }}
                   className={`block px-8 py-3 text-sm transition-colors ${
                     isSubmenuActive
@@ -262,7 +290,10 @@ const TopNav = () => {
                   {hasSubmenus ? (
                     <>
                       <button
-                        onClick={() => toggleDropdown(item.key)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleDropdown(item.key);
+                        }}
                         className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium flex items-center space-x-1 ${
                           isItemActive
                             ? 'text-wealth-gold font-medium border-b-2 border-wealth-gold'
@@ -288,7 +319,7 @@ const TopNav = () => {
                       </button>
 
                       {isOpen && (
-                        <div className="absolute top-full left-0 mt-1 w-56 bg-wealth-card border border-gray-700 rounded-lg shadow-xl overflow-hidden">
+                        <div className="absolute top-full left-0 mt-1 min-w-full w-auto bg-wealth-card border border-gray-700 rounded-lg shadow-xl overflow-hidden">
                           {item.submenus.map((submenu) => {
                             const isSubmenuActive =
                               location.pathname === item.path &&
@@ -299,7 +330,7 @@ const TopNav = () => {
                                 key={submenu.key}
                                 to={submenu.path}
                                 onClick={closeDropdown}
-                                className={`flex items-center px-4 py-3 text-sm transition-colors ${
+                                className={`flex items-center px-4 py-3 text-sm transition-colors whitespace-nowrap ${
                                   isSubmenuActive
                                     ? 'bg-wealth-gold/20 text-wealth-gold font-medium'
                                     : 'text-wealth-muted hover:bg-wealth-card/80 hover:text-white'
@@ -329,7 +360,7 @@ const TopNav = () => {
             })}
 
             {/* 로그인/로그아웃 */}
-            {user ? (
+            {/* {user ? (
               <button
                 onClick={handleLogout}
                 className="px-4 py-2 rounded-lg transition-colors text-sm font-medium text-wealth-muted hover:text-wealth-gold"
@@ -347,7 +378,7 @@ const TopNav = () => {
               >
                 로그인
               </Link>
-            )}
+            )} */}
           </nav>
 
           {/* 모바일 햄버거 메뉴 버튼 */}
@@ -424,7 +455,7 @@ const TopNav = () => {
           })}
 
           {/* 로그인/로그아웃 */}
-          <div className="border-t border-gray-700">
+          {/* <div className="border-t border-gray-700">
             {user ? (
               <button
                 onClick={() => {
@@ -451,7 +482,7 @@ const TopNav = () => {
                 로그인
               </Link>
             )}
-          </div>
+          </div> */}
         </div>
       )}
     </header>

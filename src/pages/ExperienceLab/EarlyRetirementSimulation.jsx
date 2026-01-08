@@ -289,11 +289,18 @@ function EarlyRetirementSimulation() {
   };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">조기은퇴 시뮬레이션</h1>
-        <p className="text-wealth-muted">투자 없이 살면 언제까지 버틸 수 있을까요? 다양한 시나리오를 비교해보세요.</p>
-      </div>
+    <div className="min-h-screen bg-wealth-dark pb-20">
+      <div className="max-w-[95%] mx-auto px-6 py-8">
+        <div className="space-y-8">
+          {/* 헤더 */}
+          <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-wealth-gold to-yellow-200 mb-2 whitespace-nowrap">
+              조기은퇴 시뮬레이션
+            </h1>
+            <p className="text-wealth-muted text-sm">
+              투자 없이 살면 언제까지 버틸 수 있을까요? 다양한 시나리오를 비교해보세요.
+            </p>
+          </div>
 
       {/* 입력 섹션 */}
       <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
@@ -396,7 +403,7 @@ function EarlyRetirementSimulation() {
       {results && (
         <>
           {/* 투자 없이 자산만 소진하는 경우 */}
-          <div className="bg-red-500/20 border-2 border-red-500 rounded-xl p-8 backdrop-blur-sm">
+          <div className="bg-red-500/20 border-2 border-red-500 rounded-xl p-4 sm:p-6 md:p-8 backdrop-blur-sm overflow-hidden">
             <div className="flex items-start gap-4 mb-6">
               <AlertCircle className="w-8 h-8 text-red-400 flex-shrink-0 mt-1" />
               <div>
@@ -411,12 +418,12 @@ function EarlyRetirementSimulation() {
               <div className="bg-wealth-card/50 rounded-xl p-6 border border-gray-700">
                 <div className="flex items-center gap-3 mb-3">
                   <TrendingDown className="w-6 h-6 text-red-400" />
-                  <h3 className="text-lg font-semibold text-white">은퇴 후 자산 고갈 시점</h3>
+                  <h3 className="text-base sm:text-lg font-semibold text-white break-words">은퇴 후 자산 고갈 시점</h3>
                 </div>
-                <p className="text-5xl font-bold text-red-400 mb-2">
+                <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-red-400 mb-2 break-words">
                   {results.depletionAge}세
                 </p>
-                <p className="text-wealth-muted">
+                <p className="text-wealth-muted text-sm sm:text-base">
                   은퇴 후 {(parseFloat(results.depletionAge) - retirementAge).toFixed(1)}년 내 자산 소진
                 </p>
               </div>
@@ -424,22 +431,22 @@ function EarlyRetirementSimulation() {
               <div className="bg-wealth-card/50 rounded-xl p-6 border border-gray-700">
                 <div className="flex items-center gap-3 mb-3">
                   <Briefcase className="w-6 h-6 text-orange-400" />
-                  <h3 className="text-lg font-semibold text-white">죽기 전까지 또 일해야 하는 시간</h3>
+                  <h3 className="text-base sm:text-lg font-semibold text-white break-words">죽기 전까지 또 일해야 하는 시간</h3>
                 </div>
-                <p className="text-5xl font-bold text-orange-400 mb-2">
+                <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-orange-400 mb-2 break-words">
                   {results.yearsNeedWork}년
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 bg-wealth-card/50 rounded-xl p-6 border border-gray-700">
-              <p className="text-white text-lg mb-2">
+            <div className="mt-6 bg-wealth-card/50 rounded-xl p-4 sm:p-6 border border-gray-700 overflow-hidden">
+              <p className="text-white text-base sm:text-lg mb-2 break-words">
                 💰 고갈 후 {expectedLifespan}세까지 필요한 총 소득
               </p>
-              <p className="text-4xl font-bold text-red-300">
+              <p className="text-xl sm:text-2xl md:text-4xl font-bold text-red-300 break-all">
                 {formatCurrency(results.totalWorkNeeded)}원
               </p>
-              <p className="text-wealth-muted mt-2">
+              <p className="text-wealth-muted mt-2 text-sm sm:text-base break-words">
                 = 월 {formatCurrency(results.monthlyExpense)}원 × 12개월 × {results.yearsNeedWork}년 
               </p>
             </div>
@@ -481,22 +488,22 @@ function EarlyRetirementSimulation() {
 
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div className="bg-wealth-card/50 rounded-xl p-6 border border-gray-700">
-                <p className="text-wealth-muted mb-2">필요한 은퇴 자산</p>
-                <p className="text-4xl font-bold text-blue-400 mb-2">
+                <p className="text-wealth-muted mb-2 text-sm sm:text-base">필요한 은퇴 자산</p>
+                <p className="text-xl sm:text-2xl md:text-4xl font-bold text-blue-400 mb-2 break-all">
                   {formatCurrency(results.requiredAsset)}원
                 </p>
-                <p className="text-wealth-muted text-sm">
+                <p className="text-wealth-muted text-xs sm:text-sm break-words">
                   (연 지출 {formatCurrency((parseFloat(monthlyExpenses.replace(/,/g, '')) || 0) * 12)}원 ÷ {results.dividendRate}% 배당)
                 </p>
               </div>
 
               <div className="bg-wealth-card/50 rounded-xl p-6 border border-gray-700">
-                <p className="text-wealth-muted mb-2">현재 달성률</p>
-                <p className="text-4xl font-bold text-yellow-400 mb-2">
+                <p className="text-wealth-muted mb-2 text-sm sm:text-base">현재 달성률</p>
+                <p className="text-xl sm:text-2xl md:text-4xl font-bold text-yellow-400 mb-2 break-words">
                   {results.shortfallPercent}%
                 </p>
                 {parseFloat(results.shortfallPercent) < 100 && (
-                  <p className="text-wealth-muted text-sm">
+                  <p className="text-wealth-muted text-xs sm:text-sm break-words">
                     부족액: {formatCurrency(results.shortfall)}원
                   </p>
                 )}
@@ -537,21 +544,21 @@ function EarlyRetirementSimulation() {
             
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div className="bg-wealth-card/50 rounded-xl p-6 border border-gray-700">
-                <p className="text-wealth-muted mb-2">목표 달성 예상 시점</p>
-                <p className="text-5xl font-bold text-green-400 mb-2">
+                <p className="text-wealth-muted mb-2 text-sm sm:text-base">목표 달성 예상 시점</p>
+                <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-green-400 mb-2 break-words">
                   {results.signalGoalAge}세
                 </p>
-                <p className="text-green-300">
+                <p className="text-green-300 text-sm sm:text-base break-words">
                   약 {results.signalYearsToGoal}년 후 경제적 자유 달성
                 </p>
               </div>
 
               <div className="bg-wealth-card/50 rounded-xl p-6 border border-gray-700">
-                <p className="text-wealth-muted mb-2">은퇴 예상 보다</p>
-                <p className="text-5xl font-bold text-emerald-400 mb-2">
+                <p className="text-wealth-muted mb-2 text-sm sm:text-base">은퇴 예상 보다</p>
+                <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-emerald-400 mb-2 break-words">
                   {results.yearsSaved}년
                 </p>
-                <p className="text-emerald-300">
+                <p className="text-emerald-300 text-sm sm:text-base break-words">
                   더 일찍 은퇴 가능
                 </p>
               </div>
@@ -559,27 +566,27 @@ function EarlyRetirementSimulation() {
 
             {/* 배당 수익으로 생활 */}
             <div className="bg-wealth-card/50 rounded-xl p-6 border border-gray-700 mb-6">
-              <p className="text-wealth-muted mb-2">목표 달성 후 배당 수익 (연 {results.dividendRate}%)</p>
-              <p className="text-3xl font-bold text-green-400 mb-2">
+              <p className="text-wealth-muted mb-2 text-sm sm:text-base break-words">목표 달성 후 배당 수익 (연 {results.dividendRate}%)</p>
+              <p className="text-xl sm:text-2xl md:text-3xl font-bold text-green-400 mb-2 break-all">
                 {formatCurrency((parseFloat(results.requiredAsset) * parseFloat(results.dividendRate)) / 100)}원/년
               </p>
               {parseFloat(results.signalSurplus) > 0 ? (
-                <p className="text-green-300">
+                <p className="text-green-300 text-sm sm:text-base break-words">
                   연 지출 {formatCurrency((parseFloat(monthlyExpenses.replace(/,/g, '')) || 0) * 12)}만원 대비 
                   <span className="font-bold"> {formatCurrency(results.signalSurplus)}만원 여유</span>
                 </p>
               ) : (
-                <p className="text-wealth-muted">연 지출과 동일</p>
+                <p className="text-wealth-muted text-sm sm:text-base">연 지출과 동일</p>
               )}
             </div>
 
             {/* 비교 요약 */}
             <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl p-6 text-center mb-6">
-              <p className="text-white text-xl font-bold mb-2">
+              <p className="text-white text-base sm:text-lg md:text-xl font-bold mb-2 break-words">
                 투자 없이 일만 하면: {(parseFloat(results.yearsSaved) + parseFloat(results.yearsNeedWork)).toFixed(1)}년을 더 일 해야 함, 자녀에게 남길 자산 없음.
               </p>
-              <p className="text-white text-xl font-bold mb-2">
-                조기은퇴 시스템 활용 시: {results.signalGoalAge}세에 완전한 경제적 자유, 자녀에게 남길 자산 {formatCurrency(results.requiredAsset)}원 🎉
+              <p className="text-white text-base sm:text-lg md:text-xl font-bold mb-2 break-words">
+                조기은퇴 시스템 활용 시: {results.signalGoalAge}세에 완전한 경제적 자유, 자녀에게 남길 자산 <span className="break-all">{formatCurrency(results.requiredAsset)}원</span> 🎉
               </p>
             </div>
 
@@ -592,6 +599,8 @@ function EarlyRetirementSimulation() {
           </div>
         </>
       )}
+        </div>
+      </div>
     </div>
   );
 }

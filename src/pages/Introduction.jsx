@@ -25,14 +25,14 @@ function Introduction() {
             </h2>
             <div className="space-y-4 text-lg text-wealth-muted leading-relaxed">
               <p>
-                이 사이트에 들어온 당신에게 전하고 싶은 메시지가 있습니다.
+                여기에 온 당신에게 전하고 싶은 메시지가 있습니다.
               </p>
               <p className="text-xl text-white font-medium">
                 <span className="text-wealth-gold">"당신이 원하는대로 살아갈 권리"</span>가 있다는 것을.
               </p>
               <p>
                 우리는 종종 사회가 정해준 틀 안에서 살아가야 한다고 생각합니다. 
-                정해진 나이에 퇴직하고, 정해진 방식으로 살아가야 한다고 믿습니다. 
+                정해진 나이에 퇴직하고, 정해진 방식으로 살아가야 한다고 생각합니다. 
                 하지만 그것이 정말 당신이 원하는 삶일까요?
               </p>
             </div>

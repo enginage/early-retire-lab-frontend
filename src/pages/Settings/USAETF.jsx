@@ -4,6 +4,8 @@ import DataGrid from '../../components/DataGrid';
 import { getApiUrl, API_ENDPOINTS } from '../../utils/api';
 
 const API_BASE_URL = getApiUrl(API_ENDPOINTS.USA_ETFS);
+const MASTER_API_BASE_URL = getApiUrl(API_ENDPOINTS.COMMON_CODE_MASTERS);
+const DETAIL_API_BASE_URL = getApiUrl(API_ENDPOINTS.COMMON_CODE_DETAILS);
 
 function USAETF() {
   const [allEtfs, setAllEtfs] = useState([]); // 전체 데이터 (DB에서 한 번만 읽음)
@@ -13,17 +15,53 @@ function USAETF() {
   const [newRow, setNewRow] = useState({
     ticker: '',
     name: '',
+    etf_type: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true); // 초기 로드 여부
+  const [etfTypeOptions, setEtfTypeOptions] = useState([]); // ETF 유형 옵션
+  const [etfTypeMasterId, setEtfTypeMasterId] = useState(null); // ETF 유형 마스터 ID
 
   useEffect(() => {
     if (isInitialLoad) {
+      loadEtfTypeOptions();
       loadETFs();
       setIsInitialLoad(false);
     }
   }, [isInitialLoad]);
+
+  // ETF 유형 공통코드 로드
+  const loadEtfTypeOptions = async () => {
+    try {
+      // 먼저 마스터 코드 찾기 (ETF_TYPE 또는 etf_type)
+      const masterResponse = await fetch(MASTER_API_BASE_URL);
+      if (masterResponse.ok) {
+        const masters = await masterResponse.json();
+        
+        // 여러 패턴으로 마스터 찾기
+        const etfTypeMaster = masters.find(m => 
+          m.code === 'ETF_TYPE' || 
+          m.code === 'etf_type' || 
+          m.code === 'ETF_TP' ||
+          (m.code_name?.toLowerCase().includes('etf') && m.code_name?.toLowerCase().includes('type')) ||
+          (m.code_name?.toLowerCase().includes('etf') && m.code_name?.toLowerCase().includes('유형'))
+        );
+        
+        if (etfTypeMaster) {
+          setEtfTypeMasterId(etfTypeMaster.id);
+          // 상세 코드 로드
+          const detailResponse = await fetch(`${DETAIL_API_BASE_URL}?master_id=${etfTypeMaster.id}`);
+          if (detailResponse.ok) {
+            const details = await detailResponse.json();
+            setEtfTypeOptions(details);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('ETF 유형 옵션 로드 실패:', err);
+    }
+  };
 
   // 검색어 변경 시 필터링
   useEffect(() => {
@@ -69,6 +107,7 @@ function USAETF() {
     setNewRow({
       ticker: '',
       name: '',
+      etf_type: '',
     });
     setEditingId('new');
   };
@@ -93,6 +132,7 @@ function USAETF() {
       const payload = {
         ticker: etfData.ticker,
         name: etfData.name,
+        etf_type: etfData.etf_type || null,
       };
 
       let response;
@@ -137,6 +177,7 @@ function USAETF() {
         setNewRow({
           ticker: '',
           name: '',
+          etf_type: '',
         });
       } else {
         const errorData = await response.json();
@@ -200,6 +241,7 @@ function USAETF() {
     setNewRow({
       ticker: '',
       name: '',
+      etf_type: '',
     });
   };
 
@@ -213,11 +255,11 @@ function USAETF() {
     }
   };
 
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">미국ETF</h1>
-        <p className="text-wealth-muted">미국 ETF 종목코드와 종목명을 관리합니다.</p>
+        <h1 className="text-3xl font-bold text-white mb-2">미국 ETF</h1>
       </div>
 
       {error && (
@@ -268,6 +310,7 @@ function USAETF() {
           columns={[
             { key: 'ticker', label: '종목코드', align: 'left' },
             { key: 'name', label: '종목명', align: 'left' },
+            { key: 'etf_type', label: 'ETF유형', align: 'left' },
           ]}
           data={etfs}
           editingId={editingId}
@@ -300,6 +343,20 @@ function USAETF() {
                   placeholder="종목명"
                 />
               </td>
+              <td className="py-3 px-4">
+                <select
+                  value={newRow.etf_type || ''}
+                  onChange={(e) => handleInputChange('new', 'etf_type', e.target.value)}
+                  className="w-full px-3 py-1 bg-wealth-card border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+                >
+                  <option value="">선택하세요</option>
+                  {etfTypeOptions.map((option) => (
+                    <option key={option.id} value={option.detail_code}>
+                      {option.detail_code_name}
+                    </option>
+                  ))}
+                </select>
+              </td>
             </>
           )}
           renderEditRow={(row) => (
@@ -320,14 +377,36 @@ function USAETF() {
                   className="w-full px-3 py-1 bg-wealth-card border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
                 />
               </td>
+              <td className="py-3 px-4">
+                <select
+                  value={row.etf_type || ''}
+                  onChange={(e) => handleInputChange(row.id, 'etf_type', e.target.value)}
+                  className="w-full px-3 py-1 bg-wealth-card border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+                >
+                  <option value="">선택하세요</option>
+                  {etfTypeOptions && etfTypeOptions.length > 0 ? (
+                    etfTypeOptions.map((option) => (
+                      <option key={option.id} value={option.detail_code}>
+                        {option.detail_code_name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">로딩 중...</option>
+                  )}
+                </select>
+              </td>
             </>
           )}
-          renderViewRow={(row) => (
-            <>
-              <td className="py-3 px-4 text-white text-sm">{row.ticker}</td>
-              <td className="py-3 px-4 text-white text-sm">{row.name}</td>
-            </>
-          )}
+          renderViewRow={(row) => {
+            const etfTypeName = etfTypeOptions.find(opt => opt.detail_code === row.etf_type)?.detail_code_name || row.etf_type || '';
+            return (
+              <>
+                <td className="py-3 px-4 text-white text-sm">{row.ticker}</td>
+                <td className="py-3 px-4 text-white text-sm">{row.name}</td>
+                <td className="py-3 px-4 text-white text-sm">{etfTypeName}</td>
+              </>
+            );
+          }}
           emptyMessage="등록된 ETF가 없습니다."
         />
       </div>

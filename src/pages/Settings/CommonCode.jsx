@@ -21,6 +21,7 @@ function CommonCode() {
     master_id: null,
     detail_code: '',
     detail_code_name: '',
+    order_no: 0,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -215,6 +216,7 @@ function CommonCode() {
       master_id: selectedMasterId,
       detail_code: '',
       detail_code_name: '',
+      order_no: 0,
     });
     setEditingDetailId('new');
   };
@@ -228,6 +230,7 @@ function CommonCode() {
         master_id: detailData.master_id,
         detail_code: detailData.detail_code,
         detail_code_name: detailData.detail_code_name,
+        order_no: detailData.order_no,
       };
 
       let response;
@@ -258,6 +261,7 @@ function CommonCode() {
           master_id: selectedMasterId,
           detail_code: '',
           detail_code_name: '',
+          order_no: 0,
         });
       } else {
         const errorData = await response.json();
@@ -307,6 +311,7 @@ function CommonCode() {
       master_id: selectedMasterId,
       detail_code: '',
       detail_code_name: '',
+      order_no: 0,
     });
   };
 
@@ -458,6 +463,7 @@ function CommonCode() {
               columns={[
                 { key: 'detail_code', label: '상세코드', align: 'left' },
                 { key: 'detail_code_name', label: '상세코드명', align: 'left' },
+                { key: 'order_no', label: '정렬순서', align: 'right' },
               ]}
               data={details}
               editingId={editingDetailId}
@@ -490,6 +496,14 @@ function CommonCode() {
                       placeholder="상세코드명"
                     />
                   </td>
+                  <td className="py-3 px-4">
+                    <input
+                      type="number"
+                      value={newDetailRow.order_no}
+                      onChange={(e) => handleDetailInputChange('new', 'order_no', e.target.value)}
+                      className="w-full px-3 py-1 bg-wealth-card border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+                    />
+                  </td>
                 </>
               )}
               renderEditRow={(row) => (
@@ -510,12 +524,21 @@ function CommonCode() {
                       className="w-full px-3 py-1 bg-wealth-card border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
                     />
                   </td>
+                  <td className="py-3 px-4">
+                    <input
+                      type="number"
+                      value={row.order_no}
+                      onChange={(e) => handleDetailInputChange(row.id, 'order_no', e.target.value)}
+                      className="w-full px-3 py-1 bg-wealth-card border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+                    />
+                  </td>
                 </>
               )}
               renderViewRow={(row) => (
                 <>
                   <td className="py-3 px-4 text-white text-sm">{row.detail_code}</td>
                   <td className="py-3 px-4 text-white text-sm">{row.detail_code_name}</td>
+                  <td className="py-3 px-4 text-white text-sm text-right">{row.order_no}</td>
                 </>
               )}
               emptyMessage="등록된 상세 코드가 없습니다."

@@ -7,6 +7,7 @@ import FinancialStatus from './pages/FinancialStatus';
 import Settings from './pages/Settings';
 import FreeLiving from './pages/FreeLiving';
 import ExperienceLab from './pages/ExperienceLab';
+import InvestmentIndicators from './pages/InvestmentIndicators';
 import Login from './pages/Auth/Login';
 import SignUp from './pages/Auth/SignUp';
 import ForgotPassword from './pages/Auth/ForgotPassword';
@@ -24,6 +25,7 @@ function App() {
           <Route path="/free-living" element={<FreeLiving />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/experience-lab" element={<ExperienceLab />} />
+          <Route path="/investment-indicators" element={<InvestmentIndicators />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
