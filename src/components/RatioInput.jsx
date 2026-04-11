@@ -149,7 +149,7 @@ const RatioInput = ({
           min={min}
           max={max}
           step={step}
-          className={`w-full px-4 py-3 bg-wealth-card border border-gray-700 rounded-lg text-white text-lg text-left placeholder:text-left focus:outline-none focus:ring-2 focus:ring-wealth-gold autofill:bg-wealth-card autofill:text-white ${
+          className={`w-full px-4 py-3 bg-wealth-card border border-gray-700 rounded-lg text-white text-lg text-right placeholder:text-left focus:outline-none focus:ring-2 focus:ring-wealth-gold autofill:bg-wealth-card autofill:text-white ${
             readOnly ? 'bg-gray-800/50 cursor-not-allowed' : ''
           } ${suffix && !readOnly && !disabled ? 'pr-20' : suffix ? 'pr-12' : (!readOnly && !disabled ? 'pr-12' : 'pr-4')} ${className}`}
           style={{

@@ -73,7 +73,7 @@ function Introduction() {
               to="/experience-lab?menu=early-retirement" 
               className="inline-block px-8 py-4 bg-gradient-to-r from-wealth-gold to-yellow-600 text-white font-semibold rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-200 shadow-lg shadow-yellow-900/30 hover:shadow-xl hover:shadow-yellow-900/40"
             >
-              조기 은퇴 체험실
+              조기 은퇴 실험실
             </Link>
           </section>
 

@@ -1,26 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import AppLayout from '../../layouts/AppLayout';
-import EarlyRetirementInitialSetting from './EarlyRetirementInitialSetting';
-import IncomeTarget from './IncomeTarget';
-import ISAOptimization from './ISAOptimization';
+import OpportunityCost from './OpportunityCost';
+import KRStockSummary from './KRStockSummary';
 
 const MENUS = [
-  { key: 'initial-setting', label: '조기은퇴 필요자산' },
-  { key: 'isa-optimization', label: 'ISA 수익 최적화' },
-  { key: 'income', label: '소득목표' },
+  { key: 'opportunity-cost', label: '기회비용' },
+  { key: 'kr-stock-summary', label: '국내 주식 종합' },
 ];
 
 function TargetSetting() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const menuFromUrl = searchParams.get('menu') || 'initial-setting';
+  const menuFromUrl = searchParams.get('menu') || 'opportunity-cost';
   const [activeMenu, setActiveMenu] = useState(menuFromUrl);
 
   useEffect(() => {
     const menu = searchParams.get('menu');
     if (!menu) {
-      navigate('/target-setting?menu=initial-setting', { replace: true });
+      navigate('/target-setting?menu=opportunity-cost', { replace: true });
     } else {
       setActiveMenu(menu);
     }
@@ -33,20 +31,40 @@ function TargetSetting() {
 
   const renderContent = () => {
     switch (activeMenu) {
-      case 'initial-setting':
-        return <EarlyRetirementInitialSetting />;
-      case 'isa-optimization':
-        return <ISAOptimization />;
-      case 'income':
-        return <IncomeTarget />;
+      case 'opportunity-cost':
+        return <OpportunityCost />;
+      case 'kr-stock-summary':
+        return <KRStockSummary />;
       default:
-        return <EarlyRetirementInitialSetting />;
+        return <OpportunityCost />;
     }
   };
 
   return (
     <AppLayout>
-      {renderContent()}
+      <div className="min-h-screen bg-wealth-dark pb-20">
+        <div className="max-w-[95%] mx-auto px-6 py-8">
+          {/* 탭 메뉴 */}
+          <div className="flex gap-4 border-b border-gray-700 mb-6">
+            {MENUS.map((menu) => (
+              <button
+                key={menu.key}
+                onClick={() => handleMenuClick(menu.key)}
+                className={`px-4 py-2 font-medium transition-colors ${
+                  activeMenu === menu.key
+                    ? 'text-wealth-gold border-b-2 border-wealth-gold'
+                    : 'text-wealth-muted hover:text-white'
+                }`}
+              >
+                {menu.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 컨텐츠 */}
+          {renderContent()}
+        </div>
+      </div>
     </AppLayout>
   );
 }

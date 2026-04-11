@@ -32,6 +32,7 @@ export default function SimulationTable({ data }) {
                             <TableHeader>나이</TableHeader>
                             <TableHeader>Opening Balance</TableHeader>
                             <TableHeader>수익</TableHeader>
+                            <TableHeader>연 지출</TableHeader>
                             <TableHeader>Opening + 수익</TableHeader>
                             <TableHeader>추가 투자금</TableHeader>
                             <TableHeader>추가 투자 수익</TableHeader>
@@ -47,6 +48,7 @@ export default function SimulationTable({ data }) {
                                 <TableCell className="font-mono text-wealth-muted !text-center">{row.age}</TableCell>
                                 <TableCell>{formatNumber(row.openingBalance)}</TableCell>
                                 <TableCell className="text-wealth-green">+{formatNumber(row.openingReturn)}</TableCell>
+                                <TableCell className="text-red-400">-{formatNumber(row.yearlyExpense || 0)}</TableCell>
                                 <TableCell>{formatNumber(row.openingPlusProfit)}</TableCell>
                                 <TableCell>{formatNumber(row.additionalInvestment)}</TableCell>
                                 <TableCell className="text-wealth-green">+{formatNumber(row.additionalInvestmentReturn)}</TableCell>

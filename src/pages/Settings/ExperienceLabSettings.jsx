@@ -86,8 +86,8 @@ function ExperienceLabSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">체험실 설정</h1>
-        <p className="text-wealth-muted">체험실 기능의 설정을 관리합니다.</p>
+        <h1 className="text-3xl font-bold text-white mb-2">실험실 설정</h1>
+        <p className="text-wealth-muted">실험실 기능의 설정을 관리합니다.</p>
       </div>
 
       {error && (
@@ -106,7 +106,7 @@ function ExperienceLabSettings() {
       ) : tabs.length === 0 ? (
         <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 p-6">
           <div className="text-center py-8 text-wealth-muted">
-            등록된 체험실 서비스가 없습니다.
+            등록된 실험실 서비스가 없습니다.
           </div>
         </div>
       ) : (

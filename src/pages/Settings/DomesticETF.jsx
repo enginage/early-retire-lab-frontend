@@ -4,8 +4,17 @@ import DataGrid from '../../components/DataGrid';
 import { getApiUrl, API_ENDPOINTS } from '../../utils/api';
 
 const API_BASE_URL = getApiUrl(API_ENDPOINTS.DOMESTIC_ETFS);
+const DIVIDEND_API_BASE_URL = getApiUrl(API_ENDPOINTS.DOMESTIC_ETFS_DIVIDEND);
 const MASTER_API_BASE_URL = getApiUrl(API_ENDPOINTS.COMMON_CODE_MASTERS);
 const DETAIL_API_BASE_URL = getApiUrl(API_ENDPOINTS.COMMON_CODE_DETAILS);
+
+const DIVIDEND_PAGE_SIZE = 12;
+
+function toInputDate(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value.slice(0, 10);
+  return value;
+}
 
 function DomesticETF() {
   const [allEtfs, setAllEtfs] = useState([]); // 전체 데이터 (DB에서 한 번만 읽음)
@@ -24,6 +33,179 @@ function DomesticETF() {
   const [etfTypeMasterId, setEtfTypeMasterId] = useState(null); // ETF 유형 마스터 ID
   const [etfTaxTypeOptions, setEtfTaxTypeOptions] = useState([]); // 과세유형 옵션
   const [etfTaxTypeMasterId, setEtfTaxTypeMasterId] = useState(null); // 과세유형 마스터 ID
+
+  const [dividendModalEtf, setDividendModalEtf] = useState(null);
+  const [dividendRows, setDividendRows] = useState([]);
+  const [dividendLoading, setDividendLoading] = useState(false);
+  const [dividendError, setDividendError] = useState(null);
+  const [dividendForm, setDividendForm] = useState({
+    record_date: '',
+    payment_date: '',
+    dividend_amt: '',
+    taxable_amt: '',
+  });
+  const [editingDividendId, setEditingDividendId] = useState(null);
+  const [dividendTablePage, setDividendTablePage] = useState(1);
+
+  useEffect(() => {
+    const pages = Math.max(1, Math.ceil(dividendRows.length / DIVIDEND_PAGE_SIZE));
+    setDividendTablePage((prev) => (prev > pages ? pages : prev));
+  }, [dividendRows.length]);
+
+  const loadDividendsForEtf = async (etf) => {
+    setDividendLoading(true);
+    setDividendError(null);
+    try {
+      const res = await fetch(`${DIVIDEND_API_BASE_URL}/etf/${etf.id}?limit=2000`);
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || `HTTP ${res.status}`);
+      }
+      setDividendRows(await res.json());
+    } catch (err) {
+      setDividendError(err.message || '배당 목록을 불러오지 못했습니다.');
+      setDividendRows([]);
+    } finally {
+      setDividendLoading(false);
+    }
+  };
+
+  const openDividendModal = (etf) => {
+    setDividendModalEtf(etf);
+    setDividendTablePage(1);
+    setEditingDividendId(null);
+    setDividendForm({
+      record_date: '',
+      payment_date: '',
+      dividend_amt: '',
+      taxable_amt: '',
+    });
+    loadDividendsForEtf(etf);
+  };
+
+  const closeDividendModal = () => {
+    setDividendModalEtf(null);
+    setDividendTablePage(1);
+    setDividendRows([]);
+    setDividendError(null);
+    setEditingDividendId(null);
+    setDividendForm({
+      record_date: '',
+      payment_date: '',
+      dividend_amt: '',
+      taxable_amt: '',
+    });
+  };
+
+  const parseDetailError = async (res) => {
+    try {
+      const body = await res.json();
+      if (typeof body.detail === 'string') return body.detail;
+      if (Array.isArray(body.detail)) {
+        return body.detail.map((e) => e.msg || JSON.stringify(e)).join('; ');
+      }
+      return JSON.stringify(body.detail || body);
+    } catch {
+      return res.statusText || '요청 실패';
+    }
+  };
+
+  const handleDividendSave = async () => {
+    if (!dividendModalEtf) return;
+    const amt = (v) => parseInt(String(v).replace(/,/g, ''), 10) || 0;
+    const divAmt = amt(dividendForm.dividend_amt);
+    const taxAmt = amt(dividendForm.taxable_amt);
+    if (!dividendForm.record_date || !dividendForm.payment_date) {
+      setDividendError('기준일·실지급일을 입력하세요.');
+      return;
+    }
+    setDividendLoading(true);
+    setDividendError(null);
+    try {
+      if (editingDividendId) {
+        const res = await fetch(`${DIVIDEND_API_BASE_URL}/${editingDividendId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            record_date: dividendForm.record_date,
+            payment_date: dividendForm.payment_date,
+            dividend_amt: divAmt,
+            taxable_amt: taxAmt,
+          }),
+        });
+        if (!res.ok) throw new Error(await parseDetailError(res));
+      } else {
+        const res = await fetch(`${DIVIDEND_API_BASE_URL}/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            etf_id: dividendModalEtf.id,
+            record_date: dividendForm.record_date,
+            payment_date: dividendForm.payment_date,
+            dividend_amt: divAmt,
+            taxable_amt: taxAmt,
+          }),
+        });
+        if (!res.ok) throw new Error(await parseDetailError(res));
+      }
+      setEditingDividendId(null);
+      setDividendForm({
+        record_date: '',
+        payment_date: '',
+        dividend_amt: '',
+        taxable_amt: '',
+      });
+      await loadDividendsForEtf(dividendModalEtf);
+    } catch (err) {
+      setDividendError(err.message || '저장에 실패했습니다.');
+    } finally {
+      setDividendLoading(false);
+    }
+  };
+
+  const handleDividendDelete = async (id) => {
+    if (!window.confirm('이 배당 내역을 삭제할까요?')) return;
+    setDividendLoading(true);
+    setDividendError(null);
+    try {
+      const res = await fetch(`${DIVIDEND_API_BASE_URL}/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await parseDetailError(res));
+      if (editingDividendId === id) {
+        setEditingDividendId(null);
+        setDividendForm({
+          record_date: '',
+          payment_date: '',
+          dividend_amt: '',
+          taxable_amt: '',
+        });
+      }
+      await loadDividendsForEtf(dividendModalEtf);
+    } catch (err) {
+      setDividendError(err.message || '삭제에 실패했습니다.');
+    } finally {
+      setDividendLoading(false);
+    }
+  };
+
+  const startEditDividend = (d) => {
+    setEditingDividendId(d.id);
+    setDividendForm({
+      record_date: toInputDate(d.record_date),
+      payment_date: toInputDate(d.payment_date),
+      dividend_amt: String(d.dividend_amt ?? ''),
+      taxable_amt: String(d.taxable_amt ?? ''),
+    });
+  };
+
+  const cancelDividendEdit = () => {
+    setEditingDividendId(null);
+    setDividendForm({
+      record_date: '',
+      payment_date: '',
+      dividend_amt: '',
+      taxable_amt: '',
+    });
+  };
 
   useEffect(() => {
     if (isInitialLoad) {
@@ -277,6 +459,18 @@ function DomesticETF() {
     }
   };
 
+  const dividendListTotal = dividendRows.length;
+  const dividendListTotalPages = Math.max(
+    1,
+    Math.ceil(dividendListTotal / DIVIDEND_PAGE_SIZE)
+  );
+  const dividendListStart = (dividendTablePage - 1) * DIVIDEND_PAGE_SIZE;
+  const pagedDividendRows = dividendRows.slice(
+    dividendListStart,
+    dividendListStart + DIVIDEND_PAGE_SIZE
+  );
+  const showDividendTablePager = dividendListTotal > DIVIDEND_PAGE_SIZE;
+
   return (
     <div className="space-y-8">
       <div>
@@ -369,6 +563,16 @@ function DomesticETF() {
           loading={loading}
           showRowNumber={true}
           showActions={true}
+          renderExtraActions={(row) => (
+            <button
+              type="button"
+              onClick={() => openDividendModal(row)}
+              disabled={loading || editingId !== null}
+              className="px-3 py-1 text-sm text-sky-300 hover:bg-sky-400/15 rounded transition-colors disabled:opacity-50"
+            >
+              배당등록
+            </button>
+          )}
           renderNewRow={() => (
             <>
               <td className="py-3 px-4">
@@ -490,6 +694,291 @@ function DomesticETF() {
           emptyMessage="등록된 ETF가 없습니다."
         />
       </div>
+
+      {dividendModalEtf ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dividend-modal-title"
+          onClick={closeDividendModal}
+        >
+          <div
+            className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border border-gray-700 bg-[#1a2332] shadow-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start gap-4 mb-4">
+              <div>
+                <h3 id="dividend-modal-title" className="text-xl font-semibold text-white">
+                  배당 등록 · 관리
+                </h3>
+                <p className="text-sm text-wealth-muted mt-1">
+                  {dividendModalEtf.ticker} — {dividendModalEtf.name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeDividendModal}
+                className="px-3 py-1 text-sm text-gray-300 hover:bg-white/10 rounded"
+              >
+                닫기
+              </button>
+            </div>
+
+            {dividendError ? (
+              <div className="mb-4 rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                {dividendError}
+              </div>
+            ) : null}
+
+            <div className="mb-6 overflow-x-auto rounded-lg border border-gray-700/80">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-gray-600 bg-gray-800/50 text-wealth-muted">
+                    <th className="py-2 px-3 text-left whitespace-nowrap">기준일</th>
+                    <th className="py-2 px-3 text-left whitespace-nowrap">실지급일</th>
+                    <th className="py-2 px-3 text-right whitespace-nowrap">배당금액(원)</th>
+                    <th className="py-2 px-3 text-right whitespace-nowrap">주당과세표준(원)</th>
+                    <th className="py-2 px-3 text-center whitespace-nowrap">작업</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dividendLoading && dividendRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-wealth-muted">
+                        불러오는 중…
+                      </td>
+                    </tr>
+                  ) : dividendListTotal === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-wealth-muted">
+                        등록된 배당이 없습니다. 아래에서 추가하세요.
+                      </td>
+                    </tr>
+                  ) : (
+                    pagedDividendRows.map((d) => (
+                      <tr key={d.id} className="border-b border-gray-700/60 text-white">
+                        <td className="py-2 px-3 whitespace-nowrap">
+                          {toInputDate(d.record_date)}
+                        </td>
+                        <td className="py-2 px-3 whitespace-nowrap">
+                          {toInputDate(d.payment_date)}
+                        </td>
+                        <td className="py-2 px-3 text-right">
+                          {Number(d.dividend_amt).toLocaleString('ko-KR')}
+                        </td>
+                        <td className="py-2 px-3 text-right">
+                          {Number(d.taxable_amt ?? 0).toLocaleString('ko-KR')}
+                        </td>
+                        <td className="py-2 px-3">
+                          <div className="flex gap-2 justify-center flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => startEditDividend(d)}
+                              disabled={dividendLoading}
+                              className="px-2 py-1 text-xs text-wealth-gold hover:bg-wealth-gold/10 rounded disabled:opacity-50"
+                            >
+                              수정
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDividendDelete(d.id)}
+                              disabled={dividendLoading}
+                              className="px-2 py-1 text-xs text-red-400 hover:bg-red-400/10 rounded disabled:opacity-50"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+              {showDividendTablePager ? (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 py-3 border-t border-gray-700/80 bg-gray-900/40">
+                  <div className="text-xs text-wealth-muted">
+                    전체 {dividendListTotal}건 중{' '}
+                    {dividendListStart + 1}-
+                    {Math.min(dividendListStart + DIVIDEND_PAGE_SIZE, dividendListTotal)}건 표시
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setDividendTablePage((p) => Math.max(1, p - 1))}
+                      disabled={dividendTablePage <= 1 || dividendLoading}
+                      className="px-3 py-1 text-xs rounded border border-gray-600 text-white hover:bg-gray-700 disabled:opacity-40"
+                    >
+                      이전
+                    </button>
+                    {dividendListTotalPages <= 7 ? (
+                      Array.from({ length: dividendListTotalPages }, (_, i) => i + 1).map((page) => (
+                        <button
+                          key={page}
+                          type="button"
+                          onClick={() => setDividendTablePage(page)}
+                          disabled={dividendLoading}
+                          className={`min-w-[2rem] px-2 py-1 text-xs rounded border ${
+                            dividendTablePage === page
+                              ? 'bg-wealth-gold text-gray-900 border-wealth-gold font-semibold'
+                              : 'border-gray-600 text-white hover:bg-gray-700'
+                          } disabled:opacity-40`}
+                        >
+                          {page}
+                        </button>
+                      ))
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setDividendTablePage(1)}
+                          disabled={dividendLoading}
+                          className={`min-w-[2rem] px-2 py-1 text-xs rounded border ${
+                            dividendTablePage === 1
+                              ? 'bg-wealth-gold text-gray-900 border-wealth-gold font-semibold'
+                              : 'border-gray-600 text-white hover:bg-gray-700'
+                          }`}
+                        >
+                          1
+                        </button>
+                        {dividendTablePage > 3 ? (
+                          <span className="text-wealth-muted text-xs px-1">…</span>
+                        ) : null}
+                        {Array.from({ length: dividendListTotalPages }, (_, i) => i + 1)
+                          .filter(
+                            (p) =>
+                              p !== 1 &&
+                              p !== dividendListTotalPages &&
+                              p >= dividendTablePage - 1 &&
+                              p <= dividendTablePage + 1
+                          )
+                          .map((page) => (
+                            <button
+                              key={page}
+                              type="button"
+                              onClick={() => setDividendTablePage(page)}
+                              disabled={dividendLoading}
+                              className={`min-w-[2rem] px-2 py-1 text-xs rounded border ${
+                                dividendTablePage === page
+                                  ? 'bg-wealth-gold text-gray-900 border-wealth-gold font-semibold'
+                                  : 'border-gray-600 text-white hover:bg-gray-700'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          ))}
+                        {dividendTablePage < dividendListTotalPages - 2 ? (
+                          <span className="text-wealth-muted text-xs px-1">…</span>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setDividendTablePage(dividendListTotalPages)}
+                          disabled={dividendLoading}
+                          className={`min-w-[2rem] px-2 py-1 text-xs rounded border ${
+                            dividendTablePage === dividendListTotalPages
+                              ? 'bg-wealth-gold text-gray-900 border-wealth-gold font-semibold'
+                              : 'border-gray-600 text-white hover:bg-gray-700'
+                          }`}
+                        >
+                          {dividendListTotalPages}
+                        </button>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDividendTablePage((p) =>
+                          Math.min(dividendListTotalPages, p + 1)
+                        )
+                      }
+                      disabled={
+                        dividendTablePage >= dividendListTotalPages || dividendLoading
+                      }
+                      className="px-3 py-1 text-xs rounded border border-gray-600 text-white hover:bg-gray-700 disabled:opacity-40"
+                    >
+                      다음
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <h4 className="text-lg font-medium text-white mb-3">
+              {editingDividendId ? '배당 수정' : '배당 추가'}
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-xs text-wealth-muted mb-1">기준일 (record_date)</label>
+                <input
+                  type="date"
+                  value={dividendForm.record_date}
+                  onChange={(e) =>
+                    setDividendForm((p) => ({ ...p, record_date: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600 text-white text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-wealth-muted mb-1">실지급일 (payment_date)</label>
+                <input
+                  type="date"
+                  value={dividendForm.payment_date}
+                  onChange={(e) =>
+                    setDividendForm((p) => ({ ...p, payment_date: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600 text-white text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-wealth-muted mb-1">배당금액(원)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={dividendForm.dividend_amt}
+                  onChange={(e) =>
+                    setDividendForm((p) => ({ ...p, dividend_amt: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600 text-white text-sm"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-wealth-muted mb-1">주당과세표준액(원)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={dividendForm.taxable_amt}
+                  onChange={(e) =>
+                    setDividendForm((p) => ({ ...p, taxable_amt: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600 text-white text-sm"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-end">
+              {editingDividendId ? (
+                <button
+                  type="button"
+                  onClick={cancelDividendEdit}
+                  disabled={dividendLoading}
+                  className="px-4 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
+                >
+                  신규 입력으로
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleDividendSave}
+                disabled={dividendLoading}
+                className="px-4 py-2 text-sm bg-wealth-gold text-gray-900 font-semibold rounded-lg hover:bg-yellow-500 disabled:opacity-50"
+              >
+                {editingDividendId ? '변경 저장' : '등록'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

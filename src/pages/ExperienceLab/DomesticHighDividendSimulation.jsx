@@ -1,11 +1,111 @@
 import React, { useState, useEffect } from 'react';
-import { getApiUrl, API_ENDPOINTS } from '../../utils/api';
+import { getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
 
-const API_BASE_URL = getApiUrl(API_ENDPOINTS.DOMESTIC_ETFS);
-const CHART_API_BASE_URL = getApiUrl(API_ENDPOINTS.DOMESTIC_ETFS_DAILY_CHART);
-const DIVIDEND_API_BASE_URL = getApiUrl(API_ENDPOINTS.DOMESTIC_ETFS_DIVIDEND);
-const MASTER_API_BASE_URL = getApiUrl(API_ENDPOINTS.COMMON_CODE_MASTERS);
-const DETAIL_API_BASE_URL = getApiUrl(API_ENDPOINTS.COMMON_CODE_DETAILS);
+// backend-fastapi가 아닌 Stocks RestAPI (VITE_STOCKS_REST_API_URL / 기본 :8080)
+const API_BASE_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS);
+const CHART_API_BASE_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS_DAILY_CHART);
+const DIVIDEND_API_BASE_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS_DIVIDEND);
+const MASTER_API_BASE_URL = getStocksRestApiUrl(API_ENDPOINTS.COMMON_CODE_MASTERS);
+const DETAIL_API_BASE_URL = getStocksRestApiUrl(API_ENDPOINTS.COMMON_CODE_DETAILS);
+
+/** React 18 Strict Mode(dev) 이중 마운트·동시 오픈 탭 대비: 초기 부트스트랩 네트워크 1회만 */
+let highDividendBootstrapCache = null;
+let highDividendBootstrapPromise = null;
+
+async function fetchHighDividendBootstrap() {
+  if (highDividendBootstrapCache) {
+    return highDividendBootstrapCache;
+  }
+  if (highDividendBootstrapPromise) {
+    return highDividendBootstrapPromise;
+  }
+  highDividendBootstrapPromise = (async () => {
+    const [etfRes, masterRes] = await Promise.all([
+      fetch(`${API_BASE_URL}?etf_tax_type=F`),
+      fetch(MASTER_API_BASE_URL),
+    ]);
+
+    if (!etfRes.ok) {
+      highDividendBootstrapPromise = null;
+      const errText = await etfRes.text().catch(() => '');
+      throw new Error(errText || `ETF 목록 ${etfRes.status}`);
+    }
+    const etfs = await etfRes.json();
+    let periodDetails = [];
+    let defaultPeriod = null;
+
+    if (masterRes.ok) {
+      const masters = await masterRes.json();
+      const periodMaster = masters.find(
+        (m) =>
+          m.code === 'dividend_period'
+      );
+      if (periodMaster) {
+        const detailRes = await fetch(
+          `${DETAIL_API_BASE_URL}?master_id=${periodMaster.id}`
+        );
+        if (detailRes.ok) {
+          periodDetails = await detailRes.json();
+          defaultPeriod =
+            periodDetails.find((d) => d.detail_code === 'one_year') ||
+            null;
+        }
+      }
+    }
+
+    const payload = { etfs, periodDetails, defaultPeriod };
+    highDividendBootstrapCache = payload;
+    highDividendBootstrapPromise = null;
+    return payload;
+  })().catch((err) => {
+    highDividendBootstrapPromise = null;
+    throw err;
+  });
+
+  return highDividendBootstrapPromise;
+}
+
+/** RestAPI domestic_etfs_dividend: payment_date >= 오늘 - months_ago * 30 일 (30일 근사) */
+function cutoffDateForMonthsAgo(monthsAgo) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - monthsAgo * 30);
+  return d;
+}
+
+function startOfDayFromIso(iso) {
+  const d = new Date(iso);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function filterDividendsByMonthsAgo(dividendsRaw, monthsAgo) {
+  const cutoff = cutoffDateForMonthsAgo(monthsAgo);
+  return dividendsRaw.filter(
+    (row) => startOfDayFromIso(row.payment_date) >= cutoff
+  );
+}
+
+function sortDividendsByRecordDateDesc(rows) {
+  return [...rows].sort(
+    (a, b) =>
+      new Date(b.record_date).getTime() - new Date(a.record_date).getTime()
+  );
+}
+
+/** UI 기간 → API months_ago (차트 캐시 키와 동일) */
+function monthsAgoFromPeriodDetail(selectedPeriod) {
+  if (!selectedPeriod) return 12;
+  const periodCode = String(
+    selectedPeriod.code || selectedPeriod.detail_code || ''
+  ).toLowerCase();
+  if (periodCode === 'six_month') return 6;
+  if (periodCode === 'three_month') return 3;
+  const n = String(selectedPeriod.detail_code_name || '').toLowerCase();
+  if (n.includes('6개월') || n.includes('6개')) return 6;
+  if (n.includes('3개월') || n.includes('3개')) return 3;
+  return 12;
+}
 
 function DomesticHighDividendSimulation() {
   const [etfOptions, setEtfOptions] = useState([]);
@@ -18,33 +118,131 @@ function DomesticHighDividendSimulation() {
   const [quantity, setQuantity] = useState(0); // 수량
   const [evaluationAmount, setEvaluationAmount] = useState(0); // 평가금액
   const [unrealizedProfit, setUnrealizedProfit] = useState(0); // 미실현손익
-  const [saleProfit, setSaleProfit] = useState(0); // 매도시 손익
   const [dividendData, setDividendData] = useState([]); // 배당입금내역
-  const [dividendIncome, setDividendIncome] = useState({
-    general: 0,      // 일반계좌 배당수익
-    isaGeneral: 0,   // ISA 일반형 배당수익
-    isaPeople: 0     // ISA 서민형 배당수익
-  });
+  /** 동일 종목: 1년 배당 원본 + 기간별 매입단가(12·6·3개월) — 기간 변경 시 API 재호출 없음 */
+  const [etfDataCache, setEtfDataCache] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // ETF 목록 로드 (etf_type이 'high_dividend'인 것만)
+  // ETF + 기간 마스터/상세 한 번에 로드 (Strict Mode 중복 호출 시에도 네트워크 1회)
   useEffect(() => {
-    loadEtfOptions();
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const { etfs, periodDetails, defaultPeriod } =
+          await fetchHighDividendBootstrap();
+        if (cancelled) return;
+        setEtfOptions(etfs);
+        setPeriodOptions(periodDetails);
+        if (defaultPeriod) {
+          setSelectedPeriod(defaultPeriod);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError('초기 데이터를 불러오는데 실패했습니다.');
+          console.error(err);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // 기간 옵션 로드 (dividend_period 공통코드)
+  // 종목 변경 시에만 1년 배당 + 12/6/3개월 매입단가(종가) 일괄 조회 후 캐시
   useEffect(() => {
-    loadPeriodOptions();
-  }, []);
-
-  // 선택된 ETF나 기간이 변경되면 매입단가 조회
-  useEffect(() => {
-    if (selectedEtf && selectedPeriod) {
-      loadPurchasePrice();
-      loadDividendData();
+    if (!selectedEtf) {
+      setEtfDataCache(null);
+      setPurchasePrice(null);
+      setDividendData([]);
+      return;
     }
-  }, [selectedEtf, selectedPeriod]);
+
+    let cancelled = false;
+    const etfId = selectedEtf.id;
+
+    setEtfDataCache(null);
+    setPurchasePrice(null);
+    setDividendData([]);
+
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const base = CHART_API_BASE_URL;
+        const divUrl = `${DIVIDEND_API_BASE_URL}/etf/${etfId}/period?months_ago=12`;
+
+        const [res12, res6, res3, divRes] = await Promise.all([
+          fetch(`${base}/etf/${etfId}/period?months_ago=12`),
+          fetch(`${base}/etf/${etfId}/period?months_ago=6`),
+          fetch(`${base}/etf/${etfId}/period?months_ago=3`),
+          fetch(divUrl),
+        ]);
+
+        const parseClose = async (res) => {
+          if (res.status === 404) return null;
+          if (!res.ok) return null;
+          const data = await res.json();
+          return data?.close != null ? Number(data.close) : null;
+        };
+
+        const [close12, close6, close3] = await Promise.all([
+          parseClose(res12),
+          parseClose(res6),
+          parseClose(res3),
+        ]);
+
+        let dividendsRaw = [];
+        if (divRes.ok) {
+          const data = await divRes.json();
+          dividendsRaw = Array.isArray(data) ? data : [];
+        } else if (divRes.status !== 404) {
+          throw new Error('배당 조회 실패');
+        }
+
+        if (cancelled) return;
+
+        setEtfDataCache({
+          etfId,
+          purchaseCloseByMonths: { 12: close12, 6: close6, 3: close3 },
+          dividendsRaw,
+        });
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) {
+          setError('종목 시세·배당 데이터를 불러오는데 실패했습니다.');
+          setEtfDataCache(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedEtf]);
+
+  // 기간만 바뀌면 캐시에서 매입단가·배당 목록 추출 (DB/ API 재조회 없음)
+  useEffect(() => {
+    if (!selectedEtf || !selectedPeriod) return;
+    if (!etfDataCache || etfDataCache.etfId !== selectedEtf.id) return;
+
+    const m = monthsAgoFromPeriodDetail(selectedPeriod);
+    const key = m === 6 || m === 3 ? m : 12;
+    setPurchasePrice(etfDataCache.purchaseCloseByMonths[key] ?? null);
+
+    const filtered = filterDividendsByMonthsAgo(etfDataCache.dividendsRaw, m);
+    setDividendData(sortDividendsByRecordDateDesc(filtered));
+  }, [selectedEtf, selectedPeriod, etfDataCache]);
 
   // 선택된 ETF가 변경되면 현재가 조회
   useEffect(() => {
@@ -56,115 +254,7 @@ function DomesticHighDividendSimulation() {
   // 매입금액, 매입단가, 현재가, selectedEtf가 변경되면 계산
   useEffect(() => {
     calculateValues();
-  }, [purchaseAmount, purchasePrice, currentPrice, selectedEtf]);
-
-  // 배당 데이터나 수량이 변경되면 배당수익 계산
-  useEffect(() => {
-    calculateDividendIncome();
-  }, [dividendData, quantity]);
-
-  const loadEtfOptions = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}?etf_type=high_dividend`);
-      if (response.ok) {
-        const data = await response.json();
-        setEtfOptions(data);
-      } else {
-        setError('ETF 목록을 불러오는데 실패했습니다.');
-      }
-    } catch (err) {
-      setError('ETF 목록을 불러오는데 실패했습니다.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadPeriodOptions = async () => {
-    try {
-      // 먼저 마스터 코드 찾기
-      const masterResponse = await fetch(MASTER_API_BASE_URL);
-      if (masterResponse.ok) {
-        const masters = await masterResponse.json();
-        
-        // dividend_period 마스터 찾기
-        const periodMaster = masters.find(m => 
-          m.code === 'DIVIDEND_PERIOD' || 
-          m.code === 'dividend_period' ||
-          (m.code_name?.toLowerCase().includes('dividend') && m.code_name?.toLowerCase().includes('period')) ||
-          (m.code_name?.toLowerCase().includes('배당') && m.code_name?.toLowerCase().includes('기간'))
-        );
-        
-        if (periodMaster) {
-          // 상세 코드 조회
-          const detailResponse = await fetch(`${DETAIL_API_BASE_URL}?master_id=${periodMaster.id}`);
-          if (detailResponse.ok) {
-            const details = await detailResponse.json();
-            setPeriodOptions(details);
-            // 기본값 설정 (1년)
-            const defaultPeriod = details.find(d => d.code === 'one_year');
-            if (defaultPeriod) {
-              setSelectedPeriod(defaultPeriod);
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.error('기간 옵션 로드 실패:', err);
-    }
-  };
-
-  const loadPurchasePrice = async () => {
-    if (!selectedEtf || !selectedPeriod) return;
-
-    try {
-      setLoading(true);
-      
-      // 기간 코드 파싱: one_year(12개월), six_month(6개월), three_month(3개월)
-      // code 필드와 detail_code_name 필드 모두 확인
-      const periodCode = (selectedPeriod.code || '').toLowerCase();
-      const periodName = (selectedPeriod.detail_code_name || '').toLowerCase();
-      let monthsAgo = 12; // 기본값: 12개월 (1년)
-      
-      // 1년 체크
-      if (periodCode === 'one_year' || periodCode === '1y' || periodCode === '1_year' || 
-          periodName.includes('1y') || periodName.includes('1년') || periodName.includes('one')) {
-        monthsAgo = 12;
-      } 
-      // 6개월 체크
-      else if (periodCode === 'six_month' || periodCode === '6m' || periodCode === '6_month' ||
-               periodName.includes('6m') || periodName.includes('6개월') || periodName.includes('six')) {
-        monthsAgo = 6;
-      } 
-      // 3개월 체크
-      else if (periodCode === 'three_month' || periodCode === '3m' || periodCode === '3_month' ||
-               periodName.includes('3m') || periodName.includes('3개월') || periodName.includes('three')) {
-        monthsAgo = 3;
-      }
-      
-      const url = `${CHART_API_BASE_URL}/etf/${selectedEtf.id}/period?months_ago=${monthsAgo}`;
-      
-      const response = await fetch(url);
-      if (response.ok) {
-        const chartData = await response.json();
-        if (chartData && chartData.close) {
-          setPurchasePrice(chartData.close);
-        } else {
-          setPurchasePrice(null);
-        }
-      } else if (response.status === 404) {
-        setPurchasePrice(null);
-      } else {
-        setError('매입단가를 불러오는데 실패했습니다.');
-      }
-    } catch (err) {
-      console.error('매입단가 로드 실패:', err);
-      setPurchasePrice(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [purchaseAmount, purchasePrice, currentPrice]);
 
   const loadCurrentPrice = async () => {
     if (!selectedEtf) return;
@@ -190,103 +280,6 @@ function DomesticHighDividendSimulation() {
     }
   };
 
-  const loadDividendData = async () => {
-    if (!selectedEtf || !selectedPeriod) return;
-
-    try {
-      setLoading(true);
-      
-      // 기간 코드 파싱
-      const periodCode = (selectedPeriod.code || '').toLowerCase();
-      const periodName = (selectedPeriod.detail_code_name || '').toLowerCase();
-      let monthsAgo = 12; // 기본값: 12개월 (1년)
-      
-      if (periodCode === 'one_year' || periodCode === '1y' || periodCode === '1_year' || 
-          periodName.includes('1y') || periodName.includes('1년') || periodName.includes('one')) {
-        monthsAgo = 12;
-      } else if (periodCode === 'six_month' || periodCode === '6m' || periodCode === '6_month' ||
-                 periodName.includes('6m') || periodName.includes('6개월') || periodName.includes('six')) {
-        monthsAgo = 6;
-      } else if (periodCode === 'three_month' || periodCode === '3m' || periodCode === '3_month' ||
-                 periodName.includes('3m') || periodName.includes('3개월') || periodName.includes('three')) {
-        monthsAgo = 3;
-      }
-      
-      const url = `${DIVIDEND_API_BASE_URL}/etf/${selectedEtf.id}/period?months_ago=${monthsAgo}`;
-      const response = await fetch(url);
-      
-      if (response.ok) {
-        const data = await response.json();
-        // 기준일(record_date) 기준 내림차순 정렬
-        const sortedData = [...data].sort((a, b) => {
-          const dateA = new Date(a.record_date).getTime();
-          const dateB = new Date(b.record_date).getTime();
-          return dateB - dateA; // 내림차순 (최신순)
-        });
-        setDividendData(sortedData);
-      } else if (response.status === 404) {
-        setDividendData([]);
-      } else {
-        console.error('배당 데이터 로드 실패');
-        setDividendData([]);
-      }
-    } catch (err) {
-      console.error('배당 데이터 로드 실패:', err);
-      setDividendData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateDividendIncome = () => {
-    if (!dividendData || dividendData.length === 0 || quantity === 0) {
-      setDividendIncome({ general: 0, isaGeneral: 0, isaPeople: 0 });
-      return;
-    }
-
-    // 과세표준 총액 계산: 수량 * 각 주당과세표준액의 합
-    const totalTaxableAmount = dividendData.reduce((sum, dividend) => {
-      return sum + ((dividend.taxable_amt || 0) * quantity);
-    }, 0);
-
-    // 배당금 총액 계산: 수량 * 각 배당금액의 합 (표시용)
-    const totalDividend = dividendData.reduce((sum, dividend) => {
-      return sum + (dividend.dividend_amt * quantity);
-    }, 0);
-
-    // 일반계좌: 15.4% 소득세 차감 (과세표준액 기준)
-    const taxAmount = Math.floor(totalTaxableAmount * 0.154);
-    const generalIncome = totalDividend - taxAmount;
-
-    // ISA 일반형: 200만원까지 비과세, 그 이상은 9.9% 분리과세 (과세표준액 기준)
-    let isaGeneralIncome = 0;
-    if (totalTaxableAmount <= 2000000) {
-      isaGeneralIncome = totalDividend; // 비과세
-    } else {
-      const taxFreeAmount = 2000000;
-      const taxableAmount = totalTaxableAmount - taxFreeAmount;
-      const taxAmount = Math.floor(taxableAmount * 0.099);
-      isaGeneralIncome = totalDividend - taxAmount;
-    }
-
-    // ISA 서민형: 400만원까지 비과세, 그 이상은 9.9% 분리과세 (과세표준액 기준)
-    let isaPeopleIncome = 0;
-    if (totalTaxableAmount <= 4000000) {
-      isaPeopleIncome = totalDividend; // 비과세
-    } else {
-      const taxFreeAmount = 4000000;
-      const taxableAmount = totalTaxableAmount - taxFreeAmount;
-      const taxAmount = Math.floor(taxableAmount * 0.099);
-      isaPeopleIncome = totalDividend - taxAmount;
-    }
-
-    setDividendIncome({
-      general: generalIncome,
-      isaGeneral: isaGeneralIncome,
-      isaPeople: isaPeopleIncome
-    });
-  };
-
   const calculateValues = () => {
     // 수량 계산: 매입금액 / 매입단가 (절사처리)
     let calculatedQuantity = 0;
@@ -306,25 +299,12 @@ function DomesticHighDividendSimulation() {
       if (purchasePrice) {
         const calculatedProfit = calculatedEvaluation - (purchasePrice * calculatedQuantity);
         setUnrealizedProfit(calculatedProfit);
-        
-        // 매도시 손익 계산
-        let calculatedSaleProfit = calculatedProfit;
-        
-        // etf_tax_type이 "A"인 경우 소득세(보유기간과세) 15.4% 차감
-        if (selectedEtf && selectedEtf.etf_tax_type === 'A' && calculatedProfit > 0) {
-          const taxAmount = Math.floor(calculatedProfit * 0.154);
-          calculatedSaleProfit = calculatedProfit - taxAmount;
-        }
-        
-        setSaleProfit(calculatedSaleProfit);
       } else {
         setUnrealizedProfit(0);
-        setSaleProfit(0);
       }
     } else {
       setEvaluationAmount(0);
       setUnrealizedProfit(0);
-      setSaleProfit(0);
     }
   };
 
@@ -337,6 +317,18 @@ function DomesticHighDividendSimulation() {
     if (value === null || value === undefined) return '0';
     return Number(value).toLocaleString('ko-KR');
   };
+
+  /** 일반계좌: 행별 과세표준(주당×수량)에 15.4% 적용 후 원 단위 절사 */
+  const rowDividendIncomeTax154 = (dividend) =>
+    Math.floor((dividend.taxable_amt || 0) * quantity * 0.154);
+
+  const sumRowDividendIncomeTax154 =
+    quantity > 0 && dividendData.length > 0
+      ? dividendData.reduce(
+          (sum, d) => sum + Math.floor((d.taxable_amt || 0) * quantity * 0.154),
+          0
+        )
+      : 0;
 
   return (
     <div className="min-h-screen bg-wealth-dark pb-20">
@@ -486,68 +478,19 @@ function DomesticHighDividendSimulation() {
                   </div>
                 )}
               </div>
-
-              {/* 매도시 손익 */}
-              <div className={`bg-wealth-card/30 backdrop-blur-sm rounded-lg border p-4 ${saleProfit >= 0 ? 'border-green-500/50' : 'border-red-500/50'}`}>
-                <div className="text-sm text-wealth-muted mb-1">매도시 손익</div>
-                {selectedEtf && selectedEtf.etf_tax_type === 'A' && saleProfit > 0 && (
-                  <div className="text-xs text-wealth-muted mb-1">(소득세 15.4% 제외)</div>
-                )}
-                <div className={`text-2xl font-bold ${saleProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {saleProfit >= 0 ? '+' : ''}{formatCurrency(saleProfit)}원
-                </div>
-                {saleProfit !== 0 && purchasePrice > 0 && quantity > 0 && (
-                  <div className={`text-xs mt-1 ${saleProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {((saleProfit / (purchasePrice * quantity)) * 100).toFixed(2)}%
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 
-          {/* 배당수익 섹션 */}
+          {/* 배당입금내역 */}
           <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
-            <h2 className="text-xl font-semibold mb-6 text-wealth-text">배당수익</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              {/* 일반계좌 배당수익 */}
-              <div className="bg-wealth-card/30 backdrop-blur-sm rounded-lg border border-gray-700/50 p-4">
-                <div className="text-sm text-wealth-muted mb-1">일반계좌</div>
-                <div className="text-xs text-wealth-muted mb-2">(소득세 15.4%)</div>
-                <div className="text-2xl font-bold text-wealth-text">
-                  {formatCurrency(dividendIncome.general)}원
-                </div>
-              </div>
-
-              {/* ISA 일반형 배당수익 */}
-              <div className="bg-wealth-card/30 backdrop-blur-sm rounded-lg border border-gray-700/50 p-4">
-                <div className="text-sm text-wealth-muted mb-1">ISA 일반형</div>
-                <div className="text-xs text-wealth-muted mb-2">(200만원까지 비과세, 초과는 9.9% 분리과세)</div>
-                <div className="text-2xl font-bold text-wealth-text">
-                  {formatCurrency(dividendIncome.isaGeneral)}원
-                </div>
-              </div>
-
-              {/* ISA 서민형 배당수익 */}
-              <div className="bg-wealth-card/30 backdrop-blur-sm rounded-lg border border-gray-700/50 p-4">
-                <div className="text-sm text-wealth-muted mb-1">ISA 서민형</div>
-                <div className="text-xs text-wealth-muted mb-2">(400만원까지 비과세, 초과는 9.9% 분리과세)</div>
-                <div className="text-2xl font-bold text-wealth-text">
-                  {formatCurrency(dividendIncome.isaPeople)}원
-                </div>
-              </div>
-            </div>
-
-            {/* 배당입금내역 테이블 */}
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-4 text-wealth-text">배당입금내역</h3>
+            <h2 className="text-xl font-semibold mb-6 text-wealth-text">배당입금내역</h2>
               {dividendData.length === 0 ? (
                 <div className="text-center py-8 text-wealth-muted">
                   배당 데이터가 없습니다.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse min-w-[800px]">
+                  <table className="w-full border-collapse min-w-[1040px]">
                     <thead>
                       <tr className="border-b border-gray-700">
                         <th className="text-left py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">지급기준일</th>
@@ -555,10 +498,16 @@ function DomesticHighDividendSimulation() {
                         <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">배당금액(원)</th>
                         <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">주당과세표준액(원)</th>
                         <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">배당금액({quantity}주)</th>
+                        <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">소득세</th>
+                        <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">실수령액</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {dividendData.map((dividend, index) => (
+                      {dividendData.map((dividend, index) => {
+                        const gross = dividend.dividend_amt * quantity;
+                        const incomeTax = rowDividendIncomeTax154(dividend);
+                        const netReceived = gross - incomeTax;
+                        return (
                         <tr key={dividend.id || index} className="border-b border-gray-700/50 hover:bg-gray-800/30">
                           <td className="py-3 px-4 text-wealth-text whitespace-nowrap">
                             {new Date(dividend.record_date).toLocaleDateString('ko-KR')}
@@ -573,10 +522,17 @@ function DomesticHighDividendSimulation() {
                             {formatCurrency(dividend.taxable_amt || 0)}
                           </td>
                           <td className="py-3 px-4 text-wealth-text text-right font-semibold whitespace-nowrap">
-                            {formatCurrency(dividend.dividend_amt * quantity)}
+                            {formatCurrency(gross)}
+                          </td>
+                          <td className="py-3 px-4 text-wealth-text text-right whitespace-nowrap text-amber-200/90">
+                            {formatCurrency(incomeTax)}
+                          </td>
+                          <td className="py-3 px-4 text-wealth-text text-right font-semibold whitespace-nowrap text-emerald-300/90">
+                            {formatCurrency(netReceived)}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                     <tfoot>
                       <tr className="border-t-2 border-gray-600 bg-wealth-card/30">
@@ -588,12 +544,22 @@ function DomesticHighDividendSimulation() {
                             dividendData.reduce((sum, dividend) => sum + (dividend.dividend_amt * quantity), 0)
                           )}원
                         </td>
+                        <td className="py-3 px-4 text-wealth-text text-right font-bold text-lg text-amber-200/90">
+                          {formatCurrency(sumRowDividendIncomeTax154)}원
+                        </td>
+                        <td className="py-3 px-4 text-wealth-text text-right font-bold text-lg text-emerald-300/90">
+                          {formatCurrency(
+                            dividendData.reduce((sum, dividend) => {
+                              const g = dividend.dividend_amt * quantity;
+                              return sum + (g - rowDividendIncomeTax154(dividend));
+                            }, 0)
+                          )}원
+                        </td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
               )}
-            </div>
           </div>
         </div>
       </div>

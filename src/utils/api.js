@@ -26,6 +26,31 @@ export const getApiUrl = (endpoint) => {
   return `${baseUrl}${path}`;
 };
 
+/**
+ * Stocks RestAPI 전용 (국내 고배당 ETF 시뮬레이션 등).
+ * VITE_STOCKS_REST_API_URL — Vercel URL 또는 로컬 RestAPI (기본 8080, backend-fastapi 8000과 분리)
+ * 미설정 시 http://127.0.0.1:8080
+ */
+const DEFAULT_STOCKS_REST_BASE = 'https://stocks-restapi.vercel.app';
+
+const stocksRestEnv = import.meta.env.VITE_STOCKS_REST_API_URL;
+export const STOCKS_REST_API_BASE_URL =
+  stocksRestEnv && stocksRestEnv.trim() !== ''
+    ? stocksRestEnv.trim()
+    // : 'http://127.0.0.1:8080';
+    : DEFAULT_STOCKS_REST_BASE;
+
+export const getStocksRestApiUrl = (endpoint) => {
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    return endpoint;
+  }
+  const baseUrl = STOCKS_REST_API_BASE_URL.endsWith('/')
+    ? STOCKS_REST_API_BASE_URL.slice(0, -1)
+    : STOCKS_REST_API_BASE_URL;
+  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return `${baseUrl}${path}`;
+};
+
 // 공통 API 엔드포인트
 export const API_ENDPOINTS = {
   // Common Code
@@ -70,5 +95,50 @@ export const API_ENDPOINTS = {
   
   // Income Targets
   INCOME_TARGETS: '/api/v1/income-targets',
+  
+  // Stock Trading Log
+  STOCK_TRADING_LOGS: '/api/v1/stock-trading-logs',
+  
+  // KR Stocks
+  KR_STOCKS: '/api/v1/kr-stocks',
+
+  // KR Stocks Invest Volume
+  KR_STOCKS_INVEST_VOLUME: '/api/v1/kr-stocks-invest-volume',
+  
+  // KR Stocks Trading Value (투자자별 거래대금)
+  KR_STOCKS_TRADING_VALUE: '/api/v1/kr-stocks-trading-value',
+  
+  // KR Stocks Shorting (공매도수량, 공매도잔고)
+  KR_STOCKS_SHORTING: '/api/v1/kr-stocks-shorting',
+  
+  // KR Stocks Daily Chart
+  KR_STOCKS_DAILY_CHART: '/api/v1/kr-stocks-daily-chart',
+
+  // KR Stocks News History (종목별 뉴스 요약 이력)
+  KR_STOCKS_NEWS_HISTORY: '/api/v1/kr-stocks-news-history',
+
+  // KR Stocks Disclosure History (종목별 공시 이력)
+  KR_STOCKS_DISCLOSURE_HISTORY: '/api/v1/kr-stocks-disclosure-history',
+  
+  // KR Stocks Margin Trading (대차거래정보)
+  KR_STOCKS_MARGIN_TRADING: '/api/v1/kr-stocks-margin-trading',
+  
+  // USA Stocks
+  USA_STOCKS: '/api/v1/usa-stocks',
+  
+  // Themes
+  THEMES: '/api/v1/themes',
+  
+  // Follow-up Stocks
+  FOLLOW_UP_STOCKS: '/api/v1/follow-up-stocks',
+
+  // Market Overview & Rising Theme/Stock (국장 상한가 및 급등 분석)
+  MARKET_OVERVIEW: '/api/v1/market-overview',
+  MARKET_CONDITION: '/api/v1/market-condition',
+  RISING_THEME: '/api/v1/rising-theme',
+  RISING_STOCK: '/api/v1/rising-stock',
+
+  // Batch Jobs (배치 작업)
+  BATCH_JOBS: '/api/v1/batch-jobs',
 };
 

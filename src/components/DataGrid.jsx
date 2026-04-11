@@ -19,6 +19,7 @@ import React, { useState, useEffect } from 'react';
  * @param {Function} props.renderEditRow - 편집 행 렌더링 함수 (row, columns) => ReactNode
  * @param {Function} props.renderViewRow - 조회 행 렌더링 함수 (row, columns) => ReactNode
  * @param {string} props.emptyMessage - 데이터가 없을 때 표시할 메시지
+ * @param {Function} props.renderExtraActions - 조회 모드 작업란에 추가 버튼 등 (row) => ReactNode
  */
 function DataGrid({
   columns = [],
@@ -37,6 +38,7 @@ function DataGrid({
   renderEditRow = null,
   renderViewRow = null,
   emptyMessage = '등록된 데이터가 없습니다.',
+  renderExtraActions = null,
 }) {
   const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
@@ -95,16 +97,23 @@ function DataGrid({
             {columns.map((col, index) => (
               <th
                 key={col.key}
-                className={`text-center py-3 px-4 text-wealth-muted font-medium break-words ${
+                className={`text-center py-3 px-4 text-wealth-muted font-medium ${
+                  col.nowrap !== false ? 'whitespace-nowrap' : 'break-words'
+                } ${
                   index < columns.length - 1 || showActions ? 'border-r border-gray-700/50' : ''
                 }`}
-                style={col.width ? { width: col.width } : (!showRowNumber && !showActions) ? { width: `${100 / columns.length}%` } : {}}
+                style={col.width ? { width: col.width, minWidth: col.width, maxWidth: col.maxWidth || col.width } : (!showRowNumber && !showActions) ? { width: `${100 / columns.length}%` } : {}}
               >
                 {col.label}
               </th>
             ))}
             {showActions && (
-              <th className="text-center py-3 px-4 text-wealth-muted font-medium whitespace-nowrap" style={{ width: '150px' }}>작업</th>
+              <th
+                className="text-center py-3 px-4 text-wealth-muted font-medium whitespace-nowrap"
+                style={{ minWidth: renderExtraActions ? '220px' : '150px' }}
+              >
+                작업
+              </th>
             )}
           </tr>
         </thead>
@@ -117,8 +126,8 @@ function DataGrid({
               )}
               {renderNewRow(columns)}
               {showActions && (
-                <td className="py-3 px-4" style={{ width: '150px' }}>
-                    <div className="flex gap-2 justify-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                <td className="py-3 px-4" style={{ minWidth: renderExtraActions ? '220px' : '150px' }}>
+                    <div className="flex gap-2 justify-center whitespace-nowrap flex-wrap" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={(e) => handleActionClick(e, () => onSave && onSave(null))}
                         disabled={loading}
@@ -170,7 +179,7 @@ function DataGrid({
                     return (
                       <td
                         key={col.key}
-                        className={`py-3 px-4 text-white text-sm break-words ${
+                        className={`py-3 px-4 text-white text-sm break-words whitespace-pre-wrap ${
                           col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
                         } ${colIndex < columns.length - 1 || showActions ? 'border-r border-gray-700/50' : ''}`}
                         style={col.width ? { width: col.width } : (!showRowNumber && !showActions) ? { width: `${100 / columns.length}%` } : {}}
@@ -181,8 +190,8 @@ function DataGrid({
                   })
                 )}
                 {showActions && (
-                  <td className="py-3 px-4" style={{ width: '150px' }}>
-                    <div className="flex gap-2 justify-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                  <td className="py-3 px-4" style={{ minWidth: renderExtraActions ? '220px' : '150px' }}>
+                    <div className="flex gap-2 justify-center whitespace-nowrap flex-wrap" onClick={(e) => e.stopPropagation()}>
                       {isEditing ? (
                         <>
                           <button
@@ -202,6 +211,7 @@ function DataGrid({
                         </>
                       ) : (
                         <>
+                          {renderExtraActions && renderExtraActions(row)}
                           {onEdit && (
                             <button
                               onClick={(e) => handleActionClick(e, () => onEdit(row.id))}
