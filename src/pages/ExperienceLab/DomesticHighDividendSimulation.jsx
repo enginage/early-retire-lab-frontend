@@ -340,7 +340,7 @@ function DomesticHighDividendSimulation() {
               국내 고배당 ETF 시뮬레이션
             </h1>
             <p className="text-wealth-muted text-sm">
-              고배당 ETF 투자 시뮬레이션을 통해 예상 수익을 확인하세요.
+              과거 자료를 통해 미래 예상 수익을 확인하세요.
             </p>
           </div>
 

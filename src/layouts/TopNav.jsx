@@ -18,14 +18,15 @@ const ALL_MENU_ITEMS = [
       // { key: 'usa-high-dividend', label: '미국 고배당 ETF 시뮬레이션', path: '/experience-lab?menu=usa-high-dividend' },
     ],
   },
-  // {
-  //   key: 'investment-indicators',
-  //   label: '투자지표',
-  //   path: '/investment-indicators',
-  //   submenus: [
-  //     { key: 'usa-market-indicators', label: '미국시장지표', path: '/investment-indicators?menu=usa-market-indicators' },
-  //   ],
-  // },
+  {
+    key: 'investment-indicators',
+    label: '투자지표',
+    path: '/investment-indicators',
+    submenus: [
+      { key: 'domestic-etf-indicators', label: '국내 ETF 지표', path: '/domestic-etf-indicators' },
+      // { key: 'usa-market-indicators', label: '미국시장지표', path: '/usa-market-indicators' },
+    ],
+  },
   {
     key: 'financial-status',
     label: '재무상태',
@@ -88,7 +89,7 @@ const ALL_MENU_ITEMS = [
 
 const NAV_MENU_ITEMS =
   MENU_MODE === 'public'
-    ? ALL_MENU_ITEMS.filter((item) => item.key === 'experience-lab')
+    ? ALL_MENU_ITEMS.filter((item) => item.key === 'experience-lab' || item.key === 'investment-indicators')
     : ALL_MENU_ITEMS;
 
 const TopNav = () => {
@@ -189,6 +190,7 @@ const TopNav = () => {
         '/experience-lab': 'experience-lab',
         '/financial-status': 'financial-status',
         '/target-setting': 'target-setting',
+        '/investment-indicators': 'investment-indicators',
         '/investment-info': 'investment-info',
         '/settings': 'settings',
       };

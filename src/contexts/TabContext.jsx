@@ -29,6 +29,9 @@ export const TAB_LABELS = {
   'early-retirement': '조기 은퇴 시뮬레이션',
   'domestic-high-dividend': '국내 고배당 ETF 시뮬레이션',
   'usa-high-dividend': '미국 고배당 ETF 시뮬레이션',
+  // 투자지표
+  'domestic-etf-indicators': '국내 ETF 지표',
+  'usa-market-indicators': '미국시장지표',
   // 재무상태
   'expense': '월평균지출',
   // 환경설정

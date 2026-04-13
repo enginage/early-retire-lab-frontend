@@ -16,6 +16,13 @@ function toInputDate(value) {
   return value;
 }
 
+function formatIntKO(v) {
+  if (v === null || v === undefined) return '—';
+  const n = Number(v);
+  if (Number.isNaN(n)) return '—';
+  return n.toLocaleString('ko-KR');
+}
+
 function DomesticETF() {
   const [allEtfs, setAllEtfs] = useState([]); // 전체 데이터 (DB에서 한 번만 읽음)
   const [etfs, setEtfs] = useState([]); // 필터링된 데이터
@@ -449,6 +456,32 @@ function DomesticETF() {
     });
   };
 
+  const handleSyncLatestFromDailyChart = async () => {
+    if (editingId !== null) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE_URL}/sync-latest-from-daily-chart`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        setError(await parseDetailError(res));
+        return;
+      }
+      const reloadResponse = await fetch(`${API_BASE_URL}?skip=0&limit=10000`);
+      if (reloadResponse.ok) {
+        const data = await reloadResponse.json();
+        setAllEtfs(data);
+      }
+    } catch (err) {
+      setError(err.message || '동기화 중 오류가 발생했습니다.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInputChange = (id, field, value) => {
     if (id === 'new') {
       setNewRow((prev) => ({ ...prev, [field]: value }));
@@ -486,13 +519,24 @@ function DomesticETF() {
       <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-white">ETF 목록</h2>
-          <button
-            onClick={handleAdd}
-            disabled={loading || editingId === 'new'}
-            className="px-4 py-2 bg-wealth-gold text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            + 추가
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={loading || editingId === 'new'}
+              className="px-4 py-2 bg-wealth-gold text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              + 추가
+            </button>
+            <button
+              type="button"
+              onClick={handleSyncLatestFromDailyChart}
+              disabled={loading || editingId !== null}
+              className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              기술지표 가져오기
+            </button>
+          </div>
         </div>
 
         {/* 검색 컴포넌트 */}
@@ -551,6 +595,8 @@ function DomesticETF() {
             { key: 'name', label: '종목명', align: 'left' },
             { key: 'etf_type', label: 'ETF유형', align: 'left' },
             { key: 'etf_tax_type', label: '과세유형', align: 'left' },
+            { key: 'latest_close', label: '최근 종가', align: 'right' },
+            { key: 'latest_volume', label: '최근 거래량', align: 'right' },
           ]}
           data={etfs}
           editingId={editingId}
@@ -621,6 +667,8 @@ function DomesticETF() {
                   ))}
                 </select>
               </td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
             </>
           )}
           renderEditRow={(row) => (
@@ -677,6 +725,12 @@ function DomesticETF() {
                   )}
                 </select>
               </td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap">
+                {formatIntKO(row.latest_close)}
+              </td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap">
+                {formatIntKO(row.latest_volume)}
+              </td>
             </>
           )}
           renderViewRow={(row) => {
@@ -688,6 +742,12 @@ function DomesticETF() {
                 <td className="py-3 px-4 text-white text-sm">{row.name}</td>
                 <td className="py-3 px-4 text-white text-sm">{etfTypeName}</td>
                 <td className="py-3 px-4 text-white text-sm">{etfTaxTypeName}</td>
+                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap">
+                  {formatIntKO(row.latest_close)}
+                </td>
+                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap">
+                  {formatIntKO(row.latest_volume)}
+                </td>
               </>
             );
           }}

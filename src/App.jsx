@@ -7,7 +7,6 @@ import AppLayout from './layouts/AppLayout';
 import Workspace from './pages/Workspace';
 import RedirectToWorkspace from './components/RedirectToWorkspace';
 import FreeLiving from './pages/FreeLiving';
-import InvestmentIndicators from './pages/InvestmentIndicators';
 import Login from './pages/Auth/Login';
 import SignUp from './pages/Auth/SignUp';
 import ForgotPassword from './pages/Auth/ForgotPassword';
@@ -63,7 +62,9 @@ function App() {
             <Route path="/usa-etf" element={<Navigate to="/workspace" state={{ openTab: 'usa-etf' }} replace />} />
             <Route path="/free-living" element={<FreeLiving />} />
             <Route path="/settings" element={<RedirectToWorkspace path="/settings" />} />
-            <Route path="/investment-indicators" element={<InvestmentIndicators />} />
+            <Route path="/investment-indicators" element={<RedirectToWorkspace path="/investment-indicators" />} />
+            <Route path="/domestic-etf-indicators" element={<Navigate to="/workspace" state={{ openTab: 'domestic-etf-indicators' }} replace />} />
+            <Route path="/usa-market-indicators" element={<Navigate to="/workspace" state={{ openTab: 'usa-market-indicators' }} replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

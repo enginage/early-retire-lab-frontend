@@ -25,6 +25,8 @@ import KRStocks from '../pages/Settings/KRStocks';
 import USAStocks from '../pages/Settings/USAStocks';
 import DomesticETF from '../pages/Settings/DomesticETF';
 import USAETF from '../pages/Settings/USAETF';
+import DomesticEtfIndicatorsView from '../pages/InvestmentIndicators/DomesticEtfIndicatorsView';
+import UsaMarketIndicatorsView from '../pages/InvestmentIndicators/UsaMarketIndicatorsView';
 
 const TAB_COMPONENTS = {
   'opportunity-cost': OpportunityCost,
@@ -51,6 +53,8 @@ const TAB_COMPONENTS = {
   'usa-stocks': USAStocks,
   'domestic-etf': DomesticETF,
   'usa-etf': USAETF,
+  'domestic-etf-indicators': DomesticEtfIndicatorsView,
+  'usa-market-indicators': UsaMarketIndicatorsView,
 };
 
 export default function TabbedContent() {

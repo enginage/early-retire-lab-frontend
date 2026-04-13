@@ -37,8 +37,8 @@ const stocksRestEnv = import.meta.env.VITE_STOCKS_REST_API_URL;
 export const STOCKS_REST_API_BASE_URL =
   stocksRestEnv && stocksRestEnv.trim() !== ''
     ? stocksRestEnv.trim()
-    // : 'http://127.0.0.1:8080';
-    : DEFAULT_STOCKS_REST_BASE;
+    : 'http://127.0.0.1:8080';
+    // : DEFAULT_STOCKS_REST_BASE;
 
 export const getStocksRestApiUrl = (endpoint) => {
   if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {

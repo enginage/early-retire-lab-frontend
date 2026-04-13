@@ -6,6 +6,7 @@ const PATH_DEFAULT_TAB = {
   '/experience-lab': 'early-retirement',
   '/financial-status': 'expense',
   '/settings': 'basic',
+  '/investment-indicators': 'usa-market-indicators',
 };
 
 export default function RedirectToWorkspace({ path }) {
