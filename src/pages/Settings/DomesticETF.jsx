@@ -23,6 +23,17 @@ function formatIntKO(v) {
   return n.toLocaleString('ko-KR');
 }
 
+/** 기술지표 등 소수 표시 (null → —) */
+function formatTechDecimal(v, fractionDigits = 4) {
+  if (v === null || v === undefined) return '—';
+  const n = Number(v);
+  if (Number.isNaN(n)) return '—';
+  return n.toLocaleString('ko-KR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: fractionDigits,
+  });
+}
+
 function DomesticETF() {
   const [allEtfs, setAllEtfs] = useState([]); // 전체 데이터 (DB에서 한 번만 읽음)
   const [etfs, setEtfs] = useState([]); // 필터링된 데이터
@@ -597,6 +608,14 @@ function DomesticETF() {
             { key: 'etf_tax_type', label: '과세유형', align: 'left' },
             { key: 'latest_close', label: '최근 종가', align: 'right' },
             { key: 'latest_volume', label: '최근 거래량', align: 'right' },
+            { key: 'rsi18', label: 'RSI(18)', align: 'right' },
+            { key: 'rsi30', label: 'RSI(30)', align: 'right' },
+            { key: 'obv', label: 'OBV', align: 'right' },
+            { key: 'macd_12_26', label: 'MACD', align: 'right' },
+            { key: 'macd_signal_9', label: 'MACD(9)', align: 'right' },
+            { key: 'macd_histogram', label: 'MACD히스토', align: 'right' },
+            { key: 'bb_width', label: 'BB폭', align: 'right' },
+            { key: 'bb_percent_b', label: '%B', align: 'right' },
           ]}
           data={etfs}
           editingId={editingId}
@@ -669,6 +688,14 @@ function DomesticETF() {
               </td>
               <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
               <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
             </>
           )}
           renderEditRow={(row) => (
@@ -731,6 +758,30 @@ function DomesticETF() {
               <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap">
                 {formatIntKO(row.latest_volume)}
               </td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.rsi18, 2)}
+              </td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.rsi30, 2)}
+              </td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
+                {formatIntKO(row.obv != null ? Math.round(Number(row.obv)) : null)}
+              </td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.macd_12_26, 4)}
+              </td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.macd_signal_9, 4)}
+              </td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.macd_histogram, 4)}
+              </td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.bb_width, 4)}
+              </td>
+              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.bb_percent_b, 4)}
+              </td>
             </>
           )}
           renderViewRow={(row) => {
@@ -747,6 +798,30 @@ function DomesticETF() {
                 </td>
                 <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap">
                   {formatIntKO(row.latest_volume)}
+                </td>
+                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.rsi18, 2)}
+                </td>
+                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.rsi30, 2)}
+                </td>
+                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
+                  {formatIntKO(row.obv != null ? Math.round(Number(row.obv)) : null)}
+                </td>
+                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.macd_12_26, 4)}
+                </td>
+                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.macd_signal_9, 4)}
+                </td>
+                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.macd_histogram, 4)}
+                </td>
+                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.bb_width, 4)}
+                </td>
+                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.bb_percent_b, 4)}
                 </td>
               </>
             );

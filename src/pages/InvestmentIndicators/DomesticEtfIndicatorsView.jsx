@@ -10,6 +10,16 @@ function formatIntKO(v) {
   return n.toLocaleString('ko-KR');
 }
 
+function formatTechDecimal(v, fractionDigits = 4) {
+  if (v === null || v === undefined || v === '') return '-';
+  const n = Number(v);
+  if (Number.isNaN(n)) return '-';
+  return n.toLocaleString('ko-KR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: fractionDigits,
+  });
+}
+
 function formatCompensation(value) {
   if (value === null || value === undefined || value === '') return '-';
   const n = Number(value);
@@ -193,7 +203,7 @@ function EtfMiniGrid({ rows }) {
   }
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-700/50 bg-wealth-card/30">
-      <table className="w-full text-sm border-collapse min-w-[640px]">
+      <table className="w-full text-sm border-collapse min-w-[1280px]">
         <thead>
           <tr className="border-b border-gray-700 text-left text-wealth-muted bg-wealth-card/40">
             <th className="py-2 px-3 font-medium whitespace-nowrap">티커</th>
@@ -201,6 +211,14 @@ function EtfMiniGrid({ rows }) {
             <th className="py-2 px-3 font-medium text-right whitespace-nowrap">총보수</th>
             <th className="py-2 px-3 font-medium text-right whitespace-nowrap">종가</th>
             <th className="py-2 px-3 font-medium text-right whitespace-nowrap">거래량</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">RSI(18)</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">RSI(30)</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">OBV</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">MACD</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">MACD Signal</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">MACD Oscillator</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">BB폭</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">BB%B</th>
           </tr>
         </thead>
         <tbody>
@@ -221,6 +239,34 @@ function EtfMiniGrid({ rows }) {
               </td>
               <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
                 {formatIntKO(row.latest_volume)}
+              </td>
+              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.rsi18, 2)}
+              </td>
+              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.rsi30, 2)}
+              </td>
+              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                {formatIntKO(
+                  row.obv != null && row.obv !== ''
+                    ? Math.round(Number(row.obv))
+                    : null
+                )}
+              </td>
+              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.macd_12_26, 4)}
+              </td>
+              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.macd_signal_9, 4)}
+              </td>
+              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.macd_histogram, 4)}
+              </td>
+              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.bb_width, 4)}
+              </td>
+              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                {formatTechDecimal(row.bb_percent_b, 4)}
               </td>
             </tr>
           ))}
