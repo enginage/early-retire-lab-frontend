@@ -14,7 +14,7 @@ const ALL_MENU_ITEMS = [
     path: '/experience-lab',
     submenus: [
       { key: 'early-retirement', label: '조기 은퇴 시뮬레이션', path: '/experience-lab?menu=early-retirement' },
-      { key: 'domestic-high-dividend', label: '국내 고배당 ETF 시뮬레이션', path: '/experience-lab?menu=domestic-high-dividend' },
+      { key: 'domestic-high-dividend', label: '국내 상장 고배당 ETF 시뮬레이션', path: '/experience-lab?menu=domestic-high-dividend' },
       // { key: 'usa-high-dividend', label: '미국 고배당 ETF 시뮬레이션', path: '/experience-lab?menu=usa-high-dividend' },
     ],
   },
@@ -23,7 +23,8 @@ const ALL_MENU_ITEMS = [
     label: '투자지표',
     path: '/investment-indicators',
     submenus: [
-      { key: 'domestic-etf-indicators', label: '국내 ETF 지표', path: '/domestic-etf-indicators' },
+      { key: 'domestic-etf-indicators', label: '국내 상장 ETF 지표', path: '/domestic-etf-indicators' },
+      { key: 'kr-market-indicators', label: '국장 지표', path: '/kr-market-indicators' },
       // { key: 'usa-market-indicators', label: '미국시장지표', path: '/usa-market-indicators' },
     ],
   },
@@ -351,7 +352,7 @@ const TopNav = () => {
                   d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <span className="text-lg font-bold hidden sm:inline whitespace-nowrap">조기은퇴연구소</span>
+              <span className="text-lg font-bold hidden sm:inline whitespace-nowrap">조기은퇴주식연구소</span>
             </Link>
           </div>
           

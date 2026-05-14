@@ -64,6 +64,7 @@ function App() {
             <Route path="/settings" element={<RedirectToWorkspace path="/settings" />} />
             <Route path="/investment-indicators" element={<RedirectToWorkspace path="/investment-indicators" />} />
             <Route path="/domestic-etf-indicators" element={<Navigate to="/workspace" state={{ openTab: 'domestic-etf-indicators' }} replace />} />
+            <Route path="/kr-market-indicators" element={<Navigate to="/workspace" state={{ openTab: 'kr-market-indicators' }} replace />} />
             <Route path="/usa-market-indicators" element={<Navigate to="/workspace" state={{ openTab: 'usa-market-indicators' }} replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />

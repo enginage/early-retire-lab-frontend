@@ -1,7 +1,26 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  Fragment,
+} from 'react';
 import { getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
+import {
+  fetchCommonCodeGroupsCached,
+  RSI_OPS,
+  opFromComparisonDetail,
+  matchesMacdSignFilter,
+  matchesRsiValue,
+  applyClampedDecimalThresholdInput,
+  applyRsiThresholdInput,
+} from './investmentIndicatorFilters';
 
 const DOMESTIC_ETFS_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS);
+const ASSET_MANAGEMENT_INST_URL = getStocksRestApiUrl(
+  API_ENDPOINTS.ASSET_MANAGEMENT_INSTITUTIONS
+);
 
 function formatIntKO(v) {
   if (v === null || v === undefined || v === '') return '-';
@@ -31,6 +50,21 @@ function formatCompensation(value) {
     s = s.replace(/0+$/, '').replace(/\.$/, '');
   }
   return `${s}%`;
+}
+
+function PdfPortfolioIcon({ open }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={`w-4 h-4 shrink-0 ${open ? 'text-wealth-gold' : 'text-wealth-muted'}`}
+      aria-hidden
+    >
+      <title>편입 구성(domestic_etfs_pdf)</title>
+      <path d="M4 6.75A.75.75 0 0 1 4.75 6h14.5a.75.75 0 0 1 0 1.5H4.75A.75.75 0 0 1 4 6.75ZM4 12a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H4.75A.75.75 0 0 1 4 12Zm0 5.25a.75.75 0 0 1 .75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1-.75-.75ZM17.25 16.5a.75.75 0 0 0 0 1.5h2.25a.75.75 0 0 0 0-1.5H17.25Z" />
+    </svg>
+  );
 }
 
 function groupEtfsByBaseIndex(etfs) {
@@ -69,38 +103,366 @@ export default function DomesticEtfIndicatorsView() {
   const [etfs, setEtfs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [assetInstitutions, setAssetInstitutions] = useState([]);
+  const [assetInstError, setAssetInstError] = useState(null);
+  const [selectedManagerNames, setSelectedManagerNames] = useState([]);
+  const [comparisonDetails, setComparisonDetails] = useState([]);
+  const [comparisonLoadError, setComparisonLoadError] = useState(null);
+  const [marketClassOptions, setMarketClassOptions] = useState([]);
+  /** '' = 전체, 그 외 = common_code_detail.detail_code (kr_etf_market_classification 마스터 하위) */
+  const [selectedMarketClassCode, setSelectedMarketClassCode] = useState('');
+  const [rsi18SelectedDetailCode, setRsi18SelectedDetailCode] = useState('');
+  const [rsi18Threshold, setRsi18Threshold] = useState('');
+  const [rsi30SelectedDetailCode, setRsi30SelectedDetailCode] = useState('');
+  const [rsi30Threshold, setRsi30Threshold] = useState('');
+  const [bbWidthSelectedDetailCode, setBbWidthSelectedDetailCode] = useState('');
+  const [bbWidthThreshold, setBbWidthThreshold] = useState('');
+  const [bbPercentBSelectedDetailCode, setBbPercentBSelectedDetailCode] =
+    useState('');
+  const [bbPercentBThreshold, setBbPercentBThreshold] = useState('');
+  const [macdLineSignFilter, setMacdLineSignFilter] = useState('');
+  const [macdSignalSignFilter, setMacdSignalSignFilter] = useState('');
+  const [macdHistSignFilter, setMacdHistSignFilter] = useState('');
   const [expanded, setExpanded] = useState(() => new Set());
   const [groupFilter, setGroupFilter] = useState('');
+  /** 종목코드(ticker)·종목명(name) 부분 일치 */
+  const [etfTickerNameFilter, setEtfTickerNameFilter] = useState('');
 
+  /**
+   * 화면에 필요한 3개 API를 병렬로 받고(Promise.allSettled),
+   * 모두 완료된 뒤 단일 렌더 사이클에서 setState 를 호출해
+   * "빈 목록 → 부분 목록 → 최종 목록" 같은 계단식 플리커를 방지한다.
+   */
   const loadAll = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch(`${DOMESTIC_ETFS_URL}?skip=0&limit=10000`);
-      if (!res.ok) {
-        throw new Error(`국내 ETF 조회 실패: ${res.status}`);
+    setLoading(true);
+    setError(null);
+    setAssetInstError(null);
+    setComparisonLoadError(null);
+
+    const fetchEtfs = async () => {
+      const PAGE = 1000;
+      const merged = [];
+      let skip = 0;
+      while (true) {
+        const res = await fetch(`${DOMESTIC_ETFS_URL}?skip=${skip}&limit=${PAGE}`);
+        if (!res.ok) throw new Error(`국내 ETF 조회 실패: ${res.status}`);
+        const data = await res.json();
+        const batch = Array.isArray(data) ? data : [];
+        merged.push(...batch);
+        if (batch.length < PAGE) break;
+        skip += PAGE;
       }
+      return merged;
+    };
+
+    const fetchAssetInstitutions = async () => {
+      const res = await fetch(`${ASSET_MANAGEMENT_INST_URL}?skip=0&limit=10000`);
+      if (!res.ok) throw new Error(`자산운용사 목록 조회 실패: ${res.status}`);
       const data = await res.json();
-      setEtfs(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error(err);
-      setError(err.message || '데이터를 불러오지 못했습니다.');
+      return Array.isArray(data) ? data : [];
+    };
+
+    const [etfsResult, assetsResult, commonCodeResult] = await Promise.allSettled([
+      fetchEtfs(),
+      fetchAssetInstitutions(),
+      fetchCommonCodeGroupsCached(),
+    ]);
+
+    if (etfsResult.status === 'fulfilled') {
+      setEtfs(etfsResult.value);
+    } else {
+      console.error(etfsResult.reason);
       setEtfs([]);
-    } finally {
-      setLoading(false);
+      setError(
+        etfsResult.reason?.message || '데이터를 불러오지 못했습니다.'
+      );
     }
+
+    if (assetsResult.status === 'fulfilled') {
+      setAssetInstitutions(assetsResult.value);
+    } else {
+      console.error(assetsResult.reason);
+      setAssetInstitutions([]);
+      setAssetInstError(
+        assetsResult.reason?.message || '자산운용사 목록을 불러오지 못했습니다.'
+      );
+    }
+
+    if (commonCodeResult.status === 'fulfilled') {
+      const { comparisonDetails: rows, marketClassDetails: mcRows } =
+        commonCodeResult.value;
+
+      setComparisonDetails(rows);
+      const withCode = rows.filter(
+        (r) => String(r.detail_code ?? '').trim() !== ''
+      );
+      const defaultCode = (prev) => {
+        const p = String(prev ?? '').trim();
+        if (p && withCode.some((r) => String(r.detail_code).trim() === p)) {
+          return p;
+        }
+        return withCode[0] ? String(withCode[0].detail_code).trim() : '';
+      };
+      setRsi18SelectedDetailCode(defaultCode);
+      setRsi30SelectedDetailCode(defaultCode);
+      setBbWidthSelectedDetailCode(defaultCode);
+      setBbPercentBSelectedDetailCode(defaultCode);
+
+      setMarketClassOptions(mcRows);
+    } else {
+      console.error(commonCodeResult.reason);
+      setComparisonDetails([]);
+      setRsi18SelectedDetailCode('');
+      setRsi30SelectedDetailCode('');
+      setBbWidthSelectedDetailCode('');
+      setBbPercentBSelectedDetailCode('');
+      setMarketClassOptions([]);
+      setComparisonLoadError(
+        commonCodeResult.reason?.message ||
+          '비교 연산자 / 시장분류 목록을 불러오지 못했습니다.'
+      );
+    }
+
+    setLoading(false);
   }, []);
 
   useEffect(() => {
     loadAll();
   }, [loadAll]);
 
-  const groups = useMemo(() => groupEtfsByBaseIndex(etfs), [etfs]);
+  const rsi18ThresholdNum = useMemo(() => {
+    const s = rsi18Threshold.trim();
+    if (s === '') return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  }, [rsi18Threshold]);
+
+  const rsi30ThresholdNum = useMemo(() => {
+    const s = rsi30Threshold.trim();
+    if (s === '') return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  }, [rsi30Threshold]);
+
+  const bbWidthThresholdNum = useMemo(() => {
+    const s = bbWidthThreshold.trim();
+    if (s === '') return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  }, [bbWidthThreshold]);
+
+  const bbPercentBThresholdNum = useMemo(() => {
+    const s = bbPercentBThreshold.trim();
+    if (s === '') return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  }, [bbPercentBThreshold]);
+
+  const filteredEtfs = useMemo(() => {
+    let list = etfs;
+    const symQ = etfTickerNameFilter.trim().toLowerCase();
+    if (symQ) {
+      list = list.filter(
+        (e) =>
+          String(e.ticker || '')
+            .toLowerCase()
+            .includes(symQ) ||
+          String(e.name || '')
+            .toLowerCase()
+            .includes(symQ)
+      );
+    }
+    if (selectedMarketClassCode) {
+      list = list.filter(
+        (e) =>
+          String(e.kr_etf_market_classification ?? '').trim() ===
+          selectedMarketClassCode
+      );
+    }
+    if (selectedManagerNames.length > 0) {
+      const sel = new Set(selectedManagerNames);
+      list = list.filter((e) => {
+        const am = e.asset_manager != null ? String(e.asset_manager).trim() : '';
+        return am && sel.has(am);
+      });
+    }
+    const applyRsi18 =
+      rsi18ThresholdNum !== null &&
+      !Number.isNaN(rsi18ThresholdNum) &&
+      comparisonDetails.length > 0 &&
+      String(rsi18SelectedDetailCode ?? '').trim() !== '';
+    if (applyRsi18) {
+      const detail = comparisonDetails.find(
+        (d) =>
+          String(d.detail_code ?? '').trim() ===
+          String(rsi18SelectedDetailCode).trim()
+      );
+      const op = detail ? opFromComparisonDetail(detail) : '';
+      if (op && RSI_OPS.includes(op)) {
+        list = list.filter((e) =>
+          matchesRsiValue(e.rsi18, op, rsi18ThresholdNum)
+        );
+      }
+    }
+    const applyRsi30 =
+      rsi30ThresholdNum !== null &&
+      !Number.isNaN(rsi30ThresholdNum) &&
+      comparisonDetails.length > 0 &&
+      String(rsi30SelectedDetailCode ?? '').trim() !== '';
+    if (applyRsi30) {
+      const detail = comparisonDetails.find(
+        (d) =>
+          String(d.detail_code ?? '').trim() ===
+          String(rsi30SelectedDetailCode).trim()
+      );
+      const op = detail ? opFromComparisonDetail(detail) : '';
+      if (op && RSI_OPS.includes(op)) {
+        list = list.filter((e) =>
+          matchesRsiValue(e.rsi30, op, rsi30ThresholdNum)
+        );
+      }
+    }
+    const applyBbWidth =
+      bbWidthThresholdNum !== null &&
+      !Number.isNaN(bbWidthThresholdNum) &&
+      comparisonDetails.length > 0 &&
+      String(bbWidthSelectedDetailCode ?? '').trim() !== '';
+    if (applyBbWidth) {
+      const detail = comparisonDetails.find(
+        (d) =>
+          String(d.detail_code ?? '').trim() ===
+          String(bbWidthSelectedDetailCode).trim()
+      );
+      const op = detail ? opFromComparisonDetail(detail) : '';
+      if (op && RSI_OPS.includes(op)) {
+        list = list.filter((e) =>
+          matchesRsiValue(e.bb_width, op, bbWidthThresholdNum)
+        );
+      }
+    }
+    const applyBbPercentB =
+      bbPercentBThresholdNum !== null &&
+      !Number.isNaN(bbPercentBThresholdNum) &&
+      comparisonDetails.length > 0 &&
+      String(bbPercentBSelectedDetailCode ?? '').trim() !== '';
+    if (applyBbPercentB) {
+      const detail = comparisonDetails.find(
+        (d) =>
+          String(d.detail_code ?? '').trim() ===
+          String(bbPercentBSelectedDetailCode).trim()
+      );
+      const op = detail ? opFromComparisonDetail(detail) : '';
+      if (op && RSI_OPS.includes(op)) {
+        list = list.filter((e) =>
+          matchesRsiValue(e.bb_percent_b, op, bbPercentBThresholdNum)
+        );
+      }
+    }
+    if (macdLineSignFilter) {
+      list = list.filter((e) =>
+        matchesMacdSignFilter(e.macd_12_26, macdLineSignFilter)
+      );
+    }
+    if (macdSignalSignFilter) {
+      list = list.filter((e) =>
+        matchesMacdSignFilter(e.macd_signal_9, macdSignalSignFilter)
+      );
+    }
+    if (macdHistSignFilter) {
+      list = list.filter((e) =>
+        matchesMacdSignFilter(e.macd_histogram, macdHistSignFilter)
+      );
+    }
+    return list;
+  }, [
+    etfs,
+    etfTickerNameFilter,
+    selectedManagerNames,
+    selectedMarketClassCode,
+    rsi18ThresholdNum,
+    rsi30ThresholdNum,
+    comparisonDetails,
+    rsi18SelectedDetailCode,
+    rsi30SelectedDetailCode,
+    bbWidthThresholdNum,
+    bbPercentBThresholdNum,
+    bbWidthSelectedDetailCode,
+    bbPercentBSelectedDetailCode,
+    macdLineSignFilter,
+    macdSignalSignFilter,
+    macdHistSignFilter,
+  ]);
+
+  /** detail_code → detail_code_name 매핑 (EtfMiniGrid 표시용) */
+  const marketClassNameByCode = useMemo(() => {
+    const m = new Map();
+    for (const opt of marketClassOptions) {
+      const code = String(opt.detail_code ?? '').trim();
+      if (!code) continue;
+      m.set(code, String(opt.detail_code_name ?? '').trim() || code);
+    }
+    return m;
+  }, [marketClassOptions]);
+
+  /** 비교 연산 셀렉트 4곳이 동일 목록 사용 — 한 번만 필터 */
+  const comparisonSelectRows = useMemo(
+    () =>
+      comparisonDetails.filter(
+        (d) => String(d.detail_code ?? '').trim() !== ''
+      ),
+    [comparisonDetails]
+  );
+
+  const toggleManagerName = useCallback((name) => {
+    const key = String(name ?? '').trim();
+    if (!key) return;
+    setSelectedManagerNames((prev) =>
+      prev.includes(key) ? prev.filter((n) => n !== key) : [...prev, key]
+    );
+  }, []);
+
+  const handleRsi18ThresholdChange = useCallback((e) => {
+    applyRsiThresholdInput(e.target.value, setRsi18Threshold);
+  }, []);
+
+  const handleRsi30ThresholdChange = useCallback((e) => {
+    applyRsiThresholdInput(e.target.value, setRsi30Threshold);
+  }, []);
+
+  const handleBbWidthThresholdChange = useCallback((e) => {
+    applyClampedDecimalThresholdInput(
+      e.target.value,
+      setBbWidthThreshold,
+      0,
+      100
+    );
+  }, []);
+
+  const handleBbPercentBThresholdChange = useCallback((e) => {
+    applyClampedDecimalThresholdInput(
+      e.target.value,
+      setBbPercentBThreshold,
+      0,
+      150
+    );
+  }, []);
+
+  const groups = useMemo(() => groupEtfsByBaseIndex(filteredEtfs), [filteredEtfs]);
 
   const filteredGroups = useMemo(
     () => filterGroupsByLabel(groups, groupFilter),
     [groups, groupFilter]
   );
+
+  /** 종목 검색어가 있으면 매칭된 그룹을 자동으로 모두 펼침 */
+  const effectiveExpanded = useMemo(() => {
+    if (!etfTickerNameFilter.trim()) return expanded;
+    const autoOpen = new Set(expanded);
+    for (const [label] of filteredGroups) {
+      autoOpen.add(label);
+    }
+    return autoOpen;
+  }, [etfTickerNameFilter, filteredGroups, expanded]);
 
   const toggleGroup = (key) => {
     setExpanded((prev) => {
@@ -125,19 +487,365 @@ export default function DomesticEtfIndicatorsView() {
         <div className="text-center py-8 text-wealth-muted">로딩 중...</div>
       ) : (
         <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6 flex flex-col max-h-[calc(100vh-180px)] min-h-0">
-          <div className="shrink-0 mb-4 space-y-2">
-            <label htmlFor="domestic-etf-group-filter" className="sr-only">
-              기초지수 그룹명 필터
-            </label>
-            <input
-              id="domestic-etf-group-filter"
-              type="search"
-              value={groupFilter}
-              onChange={(e) => setGroupFilter(e.target.value)}
-              placeholder="기초지수 그룹명 검색…"
-              autoComplete="off"
-              className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2.5 px-3 text-sm placeholder:text-wealth-muted/70 focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
-            />
+          <div className="shrink-0 mb-4 space-y-3">
+            {assetInstError && (
+              <p className="text-xs text-amber-400/90">{assetInstError}</p>
+            )}
+            {comparisonLoadError && (
+              <p className="text-xs text-amber-400/90">{comparisonLoadError}</p>
+            )}
+            {marketClassOptions.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-wealth-muted mb-2">
+                  시장분류
+                </p>
+                <div
+                  className="inline-flex flex-wrap gap-2"
+                  role="group"
+                  aria-label="시장분류 필터"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMarketClassCode('')}
+                    className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                      selectedMarketClassCode === ''
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-wealth-card/80 border border-blue-500/70 text-blue-300 hover:bg-blue-500/15'
+                    }`}
+                  >
+                    전체
+                  </button>
+                  {marketClassOptions.map((opt) => {
+                    const code = String(opt.detail_code ?? '').trim();
+                    if (!code) return null;
+                    const active = selectedMarketClassCode === code;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setSelectedMarketClassCode(code)}
+                        className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                          active
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'bg-wealth-card/80 border border-blue-500/70 text-blue-300 hover:bg-blue-500/15'
+                        }`}
+                      >
+                        {opt.detail_code_name || code}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <div className="flex flex-col lg:flex-row gap-3 items-stretch">
+              {assetInstitutions.length > 0 && (
+                <div className="w-full max-w-[min(100%,17rem)] lg:w-[17rem] lg:flex-none lg:shrink-0 min-w-0 border border-gray-700 rounded-lg overflow-hidden">
+                  <div className="px-3 py-2 bg-wealth-card/30 border-b border-gray-700 text-xs font-medium text-wealth-muted">
+                    자산운용사
+                  </div>
+                  <div className="max-h-44 overflow-y-auto divide-y divide-gray-700/80">
+                    {assetInstitutions.map((inst) => {
+                      const nameKey = String(inst.name ?? '').trim();
+                      const checked =
+                        nameKey !== '' && selectedManagerNames.includes(nameKey);
+                      return (
+                        <label
+                          key={inst.id}
+                          className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-wealth-card/40 text-sm text-white"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleManagerName(inst.name)}
+                            className="rounded border-gray-600 bg-wealth-card text-wealth-gold focus:ring-wealth-gold/40 shrink-0"
+                          />
+                          <span className="min-w-0">
+                            {inst.name}({inst.code})
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col sm:flex-row gap-3 shrink-0 w-full lg:w-auto flex-wrap">
+                {comparisonSelectRows.length > 0 && (
+                  <>
+                    <div className="w-full sm:w-[220px] shrink-0 border border-gray-700 rounded-lg overflow-hidden flex flex-col">
+                      <div className="px-3 py-2 bg-wealth-card/30 border-b border-gray-700 text-xs font-medium text-wealth-muted">
+                        RSI(18)
+                      </div>
+                      <div className="p-3 flex flex-col gap-2 flex-1 min-h-0">
+                        <label htmlFor="rsi18-comparison-op" className="sr-only">
+                          RSI(18) 비교 연산
+                        </label>
+                        <select
+                          id="rsi18-comparison-op"
+                          value={rsi18SelectedDetailCode}
+                          onChange={(e) => setRsi18SelectedDetailCode(e.target.value)}
+                          className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                        >
+                          {comparisonSelectRows.map((d) => {
+                            const code = String(d.detail_code).trim();
+                            return (
+                              <option key={d.id} value={code}>
+                                {code}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <label htmlFor="rsi18-threshold" className="sr-only">
+                          RSI(18) 기준값
+                        </label>
+                        <input
+                          id="rsi18-threshold"
+                          type="text"
+                          inputMode="decimal"
+                          value={rsi18Threshold}
+                          onChange={handleRsi18ThresholdChange}
+                          placeholder="0 ~ 100"
+                          autoComplete="off"
+                          className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm tabular-nums placeholder:text-wealth-muted/70 focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                        />
+                        <p className="text-[10px] text-wealth-muted leading-snug">
+                          기준값(0~100)을 입력하면 RSI(18)이 선택한 조건과 일치하는 종목만 표시합니다.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="w-full sm:w-[220px] shrink-0 border border-gray-700 rounded-lg overflow-hidden flex flex-col">
+                      <div className="px-3 py-2 bg-wealth-card/30 border-b border-gray-700 text-xs font-medium text-wealth-muted">
+                        RSI(30)
+                      </div>
+                      <div className="p-3 flex flex-col gap-2 flex-1 min-h-0">
+                        <label htmlFor="rsi30-comparison-op" className="sr-only">
+                          RSI(30) 비교 연산
+                        </label>
+                        <select
+                          id="rsi30-comparison-op"
+                          value={rsi30SelectedDetailCode}
+                          onChange={(e) => setRsi30SelectedDetailCode(e.target.value)}
+                          className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                        >
+                          {comparisonSelectRows.map((d) => {
+                            const code = String(d.detail_code).trim();
+                            return (
+                              <option key={`30-${d.id}`} value={code}>
+                                {code}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <label htmlFor="rsi30-threshold" className="sr-only">
+                          RSI(30) 기준값
+                        </label>
+                        <input
+                          id="rsi30-threshold"
+                          type="text"
+                          inputMode="decimal"
+                          value={rsi30Threshold}
+                          onChange={handleRsi30ThresholdChange}
+                          placeholder="0 ~ 100"
+                          autoComplete="off"
+                          className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm tabular-nums placeholder:text-wealth-muted/70 focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                        />
+                        <p className="text-[10px] text-wealth-muted leading-snug">
+                          기준값(0~100)을 입력하면 RSI(30)이 선택한 조건과 일치하는 종목만 표시합니다.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="w-full sm:w-[220px] shrink-0 border border-gray-700 rounded-lg overflow-hidden flex flex-col">
+                      <div className="px-3 py-2 bg-wealth-card/30 border-b border-gray-700 text-xs font-medium text-wealth-muted">
+                        BB폭
+                      </div>
+                      <div className="p-3 flex flex-col gap-2 flex-1 min-h-0">
+                        <label htmlFor="bb-width-comparison-op" className="sr-only">
+                          BB폭 비교 연산
+                        </label>
+                        <select
+                          id="bb-width-comparison-op"
+                          value={bbWidthSelectedDetailCode}
+                          onChange={(e) =>
+                            setBbWidthSelectedDetailCode(e.target.value)
+                          }
+                          className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                        >
+                          {comparisonSelectRows.map((d) => {
+                            const code = String(d.detail_code).trim();
+                            return (
+                              <option key={`bbw-${d.id}`} value={code}>
+                                {code}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <label htmlFor="bb-width-threshold" className="sr-only">
+                          BB폭 기준값
+                        </label>
+                        <input
+                          id="bb-width-threshold"
+                          type="text"
+                          inputMode="decimal"
+                          value={bbWidthThreshold}
+                          onChange={handleBbWidthThresholdChange}
+                          placeholder="0 ~ 100"
+                          autoComplete="off"
+                          className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm tabular-nums placeholder:text-wealth-muted/70 focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                        />
+                        <p className="text-[10px] text-wealth-muted leading-snug">
+                          기준값(0~100)을 입력하면 BB폭이 선택한 조건과 일치하는 종목만 표시합니다.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="w-full sm:w-[220px] shrink-0 border border-gray-700 rounded-lg overflow-hidden flex flex-col">
+                      <div className="px-3 py-2 bg-wealth-card/30 border-b border-gray-700 text-xs font-medium text-wealth-muted">
+                        BB%B
+                      </div>
+                      <div className="p-3 flex flex-col gap-2 flex-1 min-h-0">
+                        <label htmlFor="bb-pctb-comparison-op" className="sr-only">
+                          BB%B 비교 연산
+                        </label>
+                        <select
+                          id="bb-pctb-comparison-op"
+                          value={bbPercentBSelectedDetailCode}
+                          onChange={(e) =>
+                            setBbPercentBSelectedDetailCode(e.target.value)
+                          }
+                          className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                        >
+                          {comparisonSelectRows.map((d) => {
+                            const code = String(d.detail_code).trim();
+                            return (
+                              <option key={`bbpct-${d.id}`} value={code}>
+                                {code}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <label htmlFor="bb-pctb-threshold" className="sr-only">
+                          BB%B 기준값
+                        </label>
+                        <input
+                          id="bb-pctb-threshold"
+                          type="text"
+                          inputMode="decimal"
+                          value={bbPercentBThreshold}
+                          onChange={handleBbPercentBThresholdChange}
+                          placeholder="0 ~ 150"
+                          autoComplete="off"
+                          className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm tabular-nums placeholder:text-wealth-muted/70 focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                        />
+                        <p className="text-[10px] text-wealth-muted leading-snug">
+                          기준값(0~150)을 입력하면 BB%B가 선택한 조건과 일치하는 종목만 표시합니다.
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+                <div className="w-full sm:w-auto sm:min-w-[26rem] sm:max-w-[min(100%,32rem)] shrink-0 border border-gray-700 rounded-lg overflow-hidden flex flex-col">
+                  <div className="px-2 py-1.5 bg-wealth-card/30 border-b border-gray-700 text-[11px] font-medium text-wealth-muted">
+                    MACD 부호
+                  </div>
+                  <div className="p-2.5 flex flex-row flex-nowrap gap-2 items-stretch min-w-0">
+                    <div className="flex flex-col gap-0.5 flex-1 basis-0 min-w-[7.5rem]">
+                      <label
+                        htmlFor="macd-line-sign"
+                        className="text-[9px] font-medium text-wealth-muted leading-tight truncate"
+                        title="MACD"
+                      >
+                        MACD
+                      </label>
+                      <select
+                        id="macd-line-sign"
+                        value={macdLineSignFilter}
+                        onChange={(e) => setMacdLineSignFilter(e.target.value)}
+                        className="w-full min-w-0 bg-wealth-card text-wealth-text border border-gray-700/50 rounded-md py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                      >
+                        <option value="">전체</option>
+                        <option value="nonnegative">양수</option>
+                        <option value="negative">음수</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-0.5 flex-1 basis-0 min-w-[7.5rem]">
+                      <label
+                        htmlFor="macd-signal-sign"
+                        className="text-[9px] font-medium text-wealth-muted leading-tight truncate"
+                        title="MACD Signal"
+                      >
+                        Signal
+                      </label>
+                      <select
+                        id="macd-signal-sign"
+                        value={macdSignalSignFilter}
+                        onChange={(e) => setMacdSignalSignFilter(e.target.value)}
+                        className="w-full min-w-0 bg-wealth-card text-wealth-text border border-gray-700/50 rounded-md py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                      >
+                        <option value="">전체</option>
+                        <option value="nonnegative">양수</option>
+                        <option value="negative">음수</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-0.5 flex-1 basis-0 min-w-[7.5rem]">
+                      <label
+                        htmlFor="macd-hist-sign"
+                        className="text-[9px] font-medium text-wealth-muted leading-tight truncate"
+                        title="MACD Oscillator"
+                      >
+                        Oscillator
+                      </label>
+                      <select
+                        id="macd-hist-sign"
+                        value={macdHistSignFilter}
+                        onChange={(e) => setMacdHistSignFilter(e.target.value)}
+                        className="w-full min-w-0 bg-wealth-card text-wealth-text border border-gray-700/50 rounded-md py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                      >
+                        <option value="">전체</option>
+                        <option value="nonnegative">양수</option>
+                        <option value="negative">음수</option>
+                      </select>
+                    </div>
+                  </div>
+                  <p className="px-2 pb-2 text-[9px] text-wealth-muted leading-snug">
+                    0 기준 양·음. 값 없음은 조건 적용 시 제외.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
+              <div className="flex-1 min-w-0">
+                <label
+                  htmlFor="domestic-etf-group-filter"
+                  className="block text-xs text-wealth-muted mb-1"
+                >
+                  기초지수 그룹
+                </label>
+                <input
+                  id="domestic-etf-group-filter"
+                  type="search"
+                  value={groupFilter}
+                  onChange={(e) => setGroupFilter(e.target.value)}
+                  placeholder="기초지수 그룹명 검색…"
+                  autoComplete="off"
+                  className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2.5 px-3 text-sm placeholder:text-wealth-muted/70 focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                />
+              </div>
+              <div className="w-full sm:w-[min(100%,20rem)] shrink-0">
+                <label
+                  htmlFor="domestic-etf-ticker-name-filter"
+                  className="block text-xs text-wealth-muted mb-1"
+                >
+                  종목
+                </label>
+                <input
+                  id="domestic-etf-ticker-name-filter"
+                  type="search"
+                  value={etfTickerNameFilter}
+                  onChange={(e) => setEtfTickerNameFilter(e.target.value)}
+                  placeholder="티커·종목명 (예: 494300, KODEX)"
+                  autoComplete="off"
+                  className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2.5 px-3 text-sm placeholder:text-wealth-muted/70 focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
+                />
+              </div>
+            </div>
             {groups.length > 0 && (
               <p className="text-xs text-wealth-muted">
                 그룹{' '}
@@ -160,7 +868,7 @@ export default function DomesticEtfIndicatorsView() {
               </p>
             ) : (
               filteredGroups.map(([baseLabel, list]) => {
-                const isOpen = expanded.has(baseLabel);
+                const isOpen = effectiveExpanded.has(baseLabel);
                 return (
                   <div key={baseLabel} className="select-none">
                     <div className="flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer group hover:bg-wealth-card/50">
@@ -183,7 +891,10 @@ export default function DomesticEtfIndicatorsView() {
                     </div>
                     {isOpen && (
                       <div className="ml-6 mt-2 mb-4 border-l border-gray-700 pl-3">
-                        <EtfMiniGrid rows={list} />
+                        <EtfMiniGrid
+                          rows={list}
+                          marketClassNameByCode={marketClassNameByCode}
+                        />
                       </div>
                     )}
                   </div>
@@ -197,78 +908,234 @@ export default function DomesticEtfIndicatorsView() {
   );
 }
 
-function EtfMiniGrid({ rows }) {
+function EtfMiniGrid({ rows, marketClassNameByCode }) {
+  const [openPdfEtfId, setOpenPdfEtfId] = useState(null);
+  const [pdfState, setPdfState] = useState({
+    status: 'idle',
+    items: [],
+    error: null,
+  });
+  const fetchGenRef = useRef(0);
+
+  const togglePdfPanel = useCallback(
+    async (etfId) => {
+      if (openPdfEtfId === etfId) {
+        setOpenPdfEtfId(null);
+        return;
+      }
+      const gen = ++fetchGenRef.current;
+      setOpenPdfEtfId(etfId);
+      setPdfState({ status: 'loading', items: [], error: null });
+      try {
+        const res = await fetch(
+          `${DOMESTIC_ETFS_URL}/${etfId}/pdf-portfolio`
+        );
+        if (!res.ok) {
+          const raw = await res.text();
+          let msg = raw;
+          try {
+            const j = JSON.parse(raw);
+            msg = j.detail ?? raw;
+          } catch {
+            /* use raw */
+          }
+          throw new Error(
+            res.status === 404 ? 'ETF를 찾을 수 없습니다.' : msg || res.statusText
+          );
+        }
+        const data = await res.json();
+        if (gen !== fetchGenRef.current) return;
+        setPdfState({
+          status: 'done',
+          items: Array.isArray(data) ? data : [],
+          error: null,
+        });
+      } catch (e) {
+        if (gen !== fetchGenRef.current) return;
+        setPdfState({
+          status: 'error',
+          items: [],
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    },
+    [openPdfEtfId]
+  );
+
   if (!rows.length) {
     return <p className="text-wealth-muted text-sm p-4">종목이 없습니다.</p>;
   }
+  const resolveMarketClass = (code) => {
+    const c = String(code ?? '').trim();
+    if (!c) return '-';
+    if (marketClassNameByCode && marketClassNameByCode.has(c)) {
+      return marketClassNameByCode.get(c);
+    }
+    return c;
+  };
+  /** 티커 열 폭 — 종목명 sticky left 와 맞춤 */
+  const tickerColW = 'w-20 min-w-20 max-w-20';
+  const stickyTickerTh =
+    `py-2 pl-3 pr-2 font-medium whitespace-nowrap sticky left-0 z-30 ${tickerColW} box-border bg-wealth-card text-wealth-muted shadow-[4px_0_8px_-4px_rgba(0,0,0,0.4)]`;
+  const stickyNameTh =
+    'py-2 px-3 font-medium sticky left-20 z-30 min-w-[12rem] max-w-[13rem] w-[13rem] box-border bg-wealth-card text-wealth-muted shadow-[4px_0_8px_-4px_rgba(0,0,0,0.4)]';
+  const stickyTickerTd =
+    `py-2 pl-3 pr-2 text-wealth-gold font-mono whitespace-nowrap sticky left-0 z-10 ${tickerColW} box-border bg-wealth-card group-hover:bg-gray-800/90 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.35)]`;
+  const stickyNameTd =
+    'py-2 px-3 text-white sticky left-20 z-10 min-w-[12rem] max-w-[13rem] w-[13rem] box-border bg-wealth-card group-hover:bg-gray-800/90 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.35)]';
+  const colCount = 13;
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-700/50 bg-wealth-card/30">
-      <table className="w-full text-sm border-collapse min-w-[1280px]">
+      <table className="w-full text-sm border-collapse min-w-[1260px]">
         <thead>
-          <tr className="border-b border-gray-700 text-left text-wealth-muted bg-wealth-card/40">
-            <th className="py-2 px-3 font-medium whitespace-nowrap">티커</th>
-            <th className="py-2 px-3 font-medium">종목명</th>
-            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">총보수</th>
-            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">종가</th>
-            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">거래량</th>
-            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">RSI(18)</th>
-            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">RSI(30)</th>
-            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">OBV</th>
-            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">MACD</th>
-            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">MACD Signal</th>
-            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">MACD Oscillator</th>
-            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">BB폭</th>
-            <th className="py-2 px-3 font-medium text-right whitespace-nowrap">BB%B</th>
+          <tr className="border-b border-gray-700 text-left bg-wealth-card/40">
+            <th className={stickyTickerTh}>티커</th>
+            <th className={stickyNameTh}>종목명</th>
+            <th className="py-2 px-3 font-medium whitespace-nowrap text-wealth-muted">시장분류</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">총보수</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">종가</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">거래량</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">RSI(18)</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">RSI(30)</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">MACD</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">MACD Signal</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">MACD Oscillator</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">BB폭</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">BB%B</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr
-              key={row.id}
-              className="border-b border-gray-700/40 hover:bg-wealth-card/40"
-            >
-              <td className="py-2 px-3 text-wealth-gold font-mono whitespace-nowrap">
-                {row.ticker}
-              </td>
-              <td className="py-2 px-3 text-white break-words">{row.name}</td>
-              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap">
-                {formatCompensation(row.compensation)}
-              </td>
-              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
-                {formatIntKO(row.latest_close)}
-              </td>
-              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
-                {formatIntKO(row.latest_volume)}
-              </td>
-              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.rsi18, 2)}
-              </td>
-              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.rsi30, 2)}
-              </td>
-              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
-                {formatIntKO(
-                  row.obv != null && row.obv !== ''
-                    ? Math.round(Number(row.obv))
-                    : null
-                )}
-              </td>
-              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.macd_12_26, 4)}
-              </td>
-              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.macd_signal_9, 4)}
-              </td>
-              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.macd_histogram, 4)}
-              </td>
-              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.bb_width, 4)}
-              </td>
-              <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.bb_percent_b, 4)}
-              </td>
-            </tr>
+            <Fragment key={row.id}>
+              <tr className="group border-b border-gray-700/40 hover:bg-wealth-card/40">
+                <td className={stickyTickerTd}>{row.ticker}</td>
+                <td className={stickyNameTd}>
+                  <div className="flex items-center gap-1.5 min-w-0 w-full">
+                    <span className="truncate min-w-0 flex-1" title={row.name}>
+                      {row.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePdfPanel(row.id);
+                      }}
+                      className="shrink-0 p-0.5 rounded hover:bg-wealth-gold/15 focus:outline-none focus:ring-1 focus:ring-wealth-gold/50"
+                      title="편입 구성 stock.domestic_etfs_pdf"
+                      aria-expanded={openPdfEtfId === row.id}
+                      aria-label="편입 구성 보기/닫기"
+                    >
+                      <PdfPortfolioIcon open={openPdfEtfId === row.id} />
+                    </button>
+                  </div>
+                </td>
+                <td className="py-2 px-3 text-wealth-muted whitespace-nowrap">
+                  {resolveMarketClass(row.kr_etf_market_classification)}
+                </td>
+                <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap">
+                  {formatCompensation(row.compensation)}
+                </td>
+                <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                  {formatIntKO(row.latest_close)}
+                </td>
+                <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                  {formatIntKO(row.latest_volume)}
+                </td>
+                <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.rsi18, 2)}
+                </td>
+                <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.rsi30, 2)}
+                </td>
+                <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.macd_12_26, 4)}
+                </td>
+                <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.macd_signal_9, 4)}
+                </td>
+                <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.macd_histogram, 4)}
+                </td>
+                <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.bb_width, 4)}
+                </td>
+                <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                  {formatTechDecimal(row.bb_percent_b, 4)}
+                </td>
+              </tr>
+              {openPdfEtfId === row.id && (
+                <tr className="bg-wealth-card/25 border-b border-gray-700/40">
+                  <td colSpan={colCount} className="px-3 py-3 pl-6 align-top">
+                    <div className="rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden">
+                      <p className="text-[11px] text-wealth-muted px-3 py-2 border-b border-gray-700/40">
+                        stock.domestic_etfs_pdf (
+                        <span className="font-mono text-wealth-gold/80">etf_id</span>={row.id},{' '}
+                        <span className="font-mono text-wealth-gold/80">{row.ticker}</span>)
+                      </p>
+                      {pdfState.status === 'loading' && (
+                        <p className="text-sm text-wealth-muted px-3 py-4">불러오는 중…</p>
+                      )}
+                      {pdfState.status === 'error' && (
+                        <p className="text-sm text-red-400/90 px-3 py-4">{pdfState.error}</p>
+                      )}
+                      {pdfState.status === 'done' && pdfState.items.length === 0 && (
+                        <p className="text-sm text-wealth-muted px-3 py-4">
+                          저장된 편입 구성이 없습니다.
+                        </p>
+                      )}
+                      {pdfState.status === 'done' && pdfState.items.length > 0 && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs sm:text-sm border-collapse min-w-[560px]">
+                            <thead>
+                              <tr className="border-b border-gray-700/60 text-left bg-wealth-card/30">
+                                <th className="py-2 px-3 font-medium text-wealth-muted">
+                                  pdf_ticker
+                                </th>
+                                <th className="py-2 px-3 font-medium text-wealth-muted">
+                                  종목명
+                                </th>
+                                <th className="py-2 px-3 font-medium text-right text-wealth-muted">
+                                  contract_cnt
+                                </th>
+                                <th className="py-2 px-3 font-medium text-right text-wealth-muted">
+                                  proportion
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pdfState.items.map((p) => (
+                                <tr
+                                  key={p.id}
+                                  className="border-b border-gray-700/30 text-white"
+                                >
+                                  <td className="py-1.5 px-3 font-mono text-wealth-gold">
+                                    {p.pdf_ticker}
+                                  </td>
+                                  <td
+                                    className="py-1.5 px-3 text-wealth-muted max-w-[14rem] truncate"
+                                    title={p.stock_name || ''}
+                                  >
+                                    {p.stock_name != null && p.stock_name !== ''
+                                      ? p.stock_name
+                                      : '-'}
+                                  </td>
+                                  <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted">
+                                    {formatTechDecimal(p.contract_cnt, 6)}
+                                  </td>
+                                  <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted">
+                                    {formatTechDecimal(p.proportion, 6)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>

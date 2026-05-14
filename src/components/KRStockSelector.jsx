@@ -201,7 +201,7 @@ export const ensureKRStockCache = async () => {
   try {
     isLoadingKrStockCache = true;
     const apiUrl = getApiUrl(API_ENDPOINTS.KR_STOCKS);
-    krStockCachePromise = fetch(`${apiUrl}?skip=0&limit=10000&use_yn=true&suspend_yn=false`, {
+    krStockCachePromise = fetch(`${apiUrl}?skip=0&limit=10000&use_yn=true`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

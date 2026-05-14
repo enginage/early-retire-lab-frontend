@@ -18,7 +18,6 @@ function toYyyyMmDd(val) {
 function BatchJobs() {
   const [dartContractDate, setDartContractDate] = useState(getTodayYyyyMmDd);
   const [krxDate, setKrxDate] = useState(getTodayYyyyMmDd);
-  const [krxShortingDate, setKrxShortingDate] = useState(getTodayYyyyMmDd);
   const [infostockDate, setInfostockDate] = useState(getTodayYyyyMmDd);
   const [infostockHeadless, setInfostockHeadless] = useState(true);
   const [dartContractLoading, setDartContractLoading] = useState(false);
@@ -64,8 +63,8 @@ function BatchJobs() {
   };
 
   const handleRunKrxDailyCollector = async () => {
-    if (!krxDate.trim() || !krxShortingDate.trim()) {
-      setKrxError('날짜를 모두 선택해주세요.');
+    if (!krxDate.trim()) {
+      setKrxError('날짜를 선택해주세요.');
       return;
     }
     setKrxLoading(true);
@@ -77,7 +76,6 @@ function BatchJobs() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: toYyyyMmDd(krxDate),
-          shorting_date: toYyyyMmDd(krxShortingDate),
         }),
       });
       const data = await res.json();
@@ -168,7 +166,7 @@ function BatchJobs() {
         {/* 인포스탁 Daily 특징 테마 */}
         <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
           <h2 className="text-lg font-bold text-white mb-4">
-            인포스탁 Daily 특징 테마(거래일 5시 10분 작업)
+            인포스탁 Daily 특징 테마(거래일 5시 20분 작업)
           </h2>
           <p className="text-wealth-muted text-sm mb-4">
             인포스탁 Daily 특징 테마 + 특징 상한가 및 급등종목(키움 파일 다운로드)을 스크래핑하고, LLM으로 종합시황·상승테마·테마별 상승종목을 정리해 logs/daily_featured_theme에 저장합니다.
@@ -216,27 +214,18 @@ function BatchJobs() {
         {/* KRX 일일 데이터 수집기 */}
         <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
           <h2 className="text-lg font-bold text-white mb-4">
-            KRX 일일 데이터 수집기(거래일 6시 5분 작업)
+            KRX 일일 데이터 수집기(거래일 3시 30분 이후 작업)
           </h2>
           <p className="text-wealth-muted text-sm mb-4">
-            KRX 로그인 후 일일 차트, 공매도, 투자자별 거래대금 데이터를 수집합니다. 날짜(일일 차트/거래대금용)와 공매도 날짜를 각각 선택하세요.
+            KRX 로그인 후 일일 차트, 투자자별 거래대금, 국내 ETF 일일 차트 등을 수집합니다. 날짜(일일 차트·거래대금·ETF 일봉용)를 선택하세요.
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="block text-wealth-muted text-xs mb-1">날짜 (일일 차트/거래대금)</label>
+              <label className="block text-wealth-muted text-xs mb-1">날짜 (일일 차트/거래대금/ETF)</label>
               <input
                 type="date"
                 value={krxDate}
                 onChange={(e) => setKrxDate(e.target.value)}
-                className="px-3 py-2 bg-wealth-card border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
-              />
-            </div>
-            <div>
-              <label className="block text-wealth-muted text-xs mb-1">공매도 날짜</label>
-              <input
-                type="date"
-                value={krxShortingDate}
-                onChange={(e) => setKrxShortingDate(e.target.value)}
                 className="px-3 py-2 bg-wealth-card border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
               />
             </div>
@@ -256,7 +245,7 @@ function BatchJobs() {
           )}
           {krxResult && (
             <div className="mt-4 bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm">
-              {krxResult.message} (날짜: {krxResult.date}, 공매도: {krxResult.shorting_date})
+              {krxResult.message} (날짜: {krxResult.date})
             </div>
           )}
         </div>

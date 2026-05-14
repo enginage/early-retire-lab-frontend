@@ -16,33 +16,20 @@ function toInputDate(value) {
   return value;
 }
 
-function formatIntKO(v) {
-  if (v === null || v === undefined) return '—';
-  const n = Number(v);
-  if (Number.isNaN(n)) return '—';
-  return n.toLocaleString('ko-KR');
-}
-
-/** 기술지표 등 소수 표시 (null → —) */
-function formatTechDecimal(v, fractionDigits = 4) {
-  if (v === null || v === undefined) return '—';
-  const n = Number(v);
-  if (Number.isNaN(n)) return '—';
-  return n.toLocaleString('ko-KR', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: fractionDigits,
-  });
-}
-
 function DomesticETF() {
   const [allEtfs, setAllEtfs] = useState([]); // 전체 데이터 (DB에서 한 번만 읽음)
   const [etfs, setEtfs] = useState([]); // 필터링된 데이터
   const [searchQuery, setSearchQuery] = useState(''); // 검색어
   const [selectedTaxType, setSelectedTaxType] = useState(''); // 선택된 과세유형
+  const [selectedEtfType, setSelectedEtfType] = useState(''); // 선택된 ETF유형 (detail_code)
+  const [selectedMarketClass, setSelectedMarketClass] = useState(''); // 시장구분 (kr_etf_market_classification detail_code)
   const [editingId, setEditingId] = useState(null);
   const [newRow, setNewRow] = useState({
     ticker: '',
     name: '',
+    etf_type: '',
+    etf_tax_type: '',
+    kr_etf_market_classification: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -51,6 +38,7 @@ function DomesticETF() {
   const [etfTypeMasterId, setEtfTypeMasterId] = useState(null); // ETF 유형 마스터 ID
   const [etfTaxTypeOptions, setEtfTaxTypeOptions] = useState([]); // 과세유형 옵션
   const [etfTaxTypeMasterId, setEtfTaxTypeMasterId] = useState(null); // 과세유형 마스터 ID
+  const [marketClassOptions, setMarketClassOptions] = useState([]); // kr_etf_market_classification 상세
 
   const [dividendModalEtf, setDividendModalEtf] = useState(null);
   const [dividendRows, setDividendRows] = useState([]);
@@ -229,6 +217,7 @@ function DomesticETF() {
     if (isInitialLoad) {
       loadEtfTypeOptions();
       loadEtfTaxTypeOptions();
+      loadMarketClassificationOptions();
       loadETFs();
       setIsInitialLoad(false);
     }
@@ -294,7 +283,28 @@ function DomesticETF() {
     }
   };
 
-  // 검색어 및 과세유형 변경 시 필터링
+  const loadMarketClassificationOptions = async () => {
+    try {
+      const masterResponse = await fetch(MASTER_API_BASE_URL);
+      if (masterResponse.ok) {
+        const masters = await masterResponse.json();
+        const mcMaster = masters.find((m) => m.code === 'kr_etf_market_classification');
+        if (mcMaster) {
+          const detailResponse = await fetch(
+            `${DETAIL_API_BASE_URL}?master_id=${mcMaster.id}&skip=0&limit=500`
+          );
+          if (detailResponse.ok) {
+            const details = await detailResponse.json();
+            setMarketClassOptions(details);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('시장구분(kr_etf_market_classification) 옵션 로드 실패:', err);
+    }
+  };
+
+  // 검색어·ETF유형·과세유형·시장구분 변경 시 필터링
   useEffect(() => {
     let filtered = allEtfs;
 
@@ -306,13 +316,27 @@ function DomesticETF() {
       );
     }
 
+    // ETF유형 필터링 (DB etf_type = common_code detail_code)
+    if (selectedEtfType !== '') {
+      filtered = filtered.filter((etf) => etf.etf_type === selectedEtfType);
+    }
+
     // 과세유형 필터링
     if (selectedTaxType !== '') {
       filtered = filtered.filter(etf => etf.etf_tax_type === selectedTaxType);
     }
 
+    // 시장구분 필터링
+    if (selectedMarketClass !== '') {
+      filtered = filtered.filter(
+        (etf) =>
+          String(etf.kr_etf_market_classification ?? '').trim() ===
+          selectedMarketClass
+      );
+    }
+
     setEtfs(filtered);
-  }, [searchQuery, selectedTaxType, allEtfs]);
+  }, [searchQuery, selectedEtfType, selectedTaxType, selectedMarketClass, allEtfs]);
 
   const loadETFs = async () => {
     try {
@@ -347,6 +371,7 @@ function DomesticETF() {
       name: '',
       etf_type: '',
       etf_tax_type: '',
+      kr_etf_market_classification: '',
     });
     setEditingId('new');
   };
@@ -373,6 +398,8 @@ function DomesticETF() {
         name: etfData.name,
         etf_type: etfData.etf_type || null,
         etf_tax_type: etfData.etf_tax_type || null,
+        kr_etf_market_classification:
+          etfData.kr_etf_market_classification?.trim() || null,
       };
 
       let response;
@@ -409,6 +436,7 @@ function DomesticETF() {
           name: '',
           etf_type: '',
           etf_tax_type: '',
+          kr_etf_market_classification: '',
         });
       } else {
         const errorData = await response.json();
@@ -464,6 +492,7 @@ function DomesticETF() {
       name: '',
       etf_type: '',
       etf_tax_type: '',
+      kr_etf_market_classification: '',
     });
   };
 
@@ -552,8 +581,8 @@ function DomesticETF() {
 
         {/* 검색 컴포넌트 */}
         <div className="mb-6">
-          <div className="flex items-end gap-4">
-            <div className="flex-1">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[200px]">
               <label className="block text-sm font-medium text-wealth-muted mb-2">
                 종목
               </label>
@@ -580,7 +609,24 @@ function DomesticETF() {
                 />
               </div>
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-[160px]">
+              <label className="block text-sm font-medium text-wealth-muted mb-2">
+                ETF유형
+              </label>
+              <select
+                value={selectedEtfType}
+                onChange={(e) => setSelectedEtfType(e.target.value)}
+                className="w-full max-w-xs px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-wealth-gold focus:border-transparent"
+              >
+                <option value="">전체</option>
+                {etfTypeOptions.map((option) => (
+                  <option key={option.id} value={option.detail_code}>
+                    {option.detail_code_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1 min-w-[160px]">
               <label className="block text-sm font-medium text-wealth-muted mb-2">
                 과세유형
               </label>
@@ -597,6 +643,30 @@ function DomesticETF() {
                 ))}
               </select>
             </div>
+            <div className="flex-1 min-w-[160px]">
+              <label className="block text-sm font-medium text-wealth-muted mb-2">
+                시장구분
+              </label>
+              <select
+                value={selectedMarketClass}
+                onChange={(e) => setSelectedMarketClass(e.target.value)}
+                className="w-full max-w-xs px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-wealth-gold focus:border-transparent"
+              >
+                <option value="">전체</option>
+                {[...marketClassOptions]
+                  .sort((a, b) =>
+                    String(a.detail_code_name || '').localeCompare(
+                      String(b.detail_code_name || ''),
+                      'ko'
+                    )
+                  )
+                  .map((option) => (
+                    <option key={option.id} value={String(option.detail_code).trim()}>
+                      {option.detail_code_name}
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -606,16 +676,11 @@ function DomesticETF() {
             { key: 'name', label: '종목명', align: 'left' },
             { key: 'etf_type', label: 'ETF유형', align: 'left' },
             { key: 'etf_tax_type', label: '과세유형', align: 'left' },
-            { key: 'latest_close', label: '최근 종가', align: 'right' },
-            { key: 'latest_volume', label: '최근 거래량', align: 'right' },
-            { key: 'rsi18', label: 'RSI(18)', align: 'right' },
-            { key: 'rsi30', label: 'RSI(30)', align: 'right' },
-            { key: 'obv', label: 'OBV', align: 'right' },
-            { key: 'macd_12_26', label: 'MACD', align: 'right' },
-            { key: 'macd_signal_9', label: 'MACD(9)', align: 'right' },
-            { key: 'macd_histogram', label: 'MACD히스토', align: 'right' },
-            { key: 'bb_width', label: 'BB폭', align: 'right' },
-            { key: 'bb_percent_b', label: '%B', align: 'right' },
+            {
+              key: 'kr_etf_market_classification',
+              label: '시장구분',
+              align: 'left',
+            },
           ]}
           data={etfs}
           editingId={editingId}
@@ -686,16 +751,22 @@ function DomesticETF() {
                   ))}
                 </select>
               </td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right">—</td>
+              <td className="py-3 px-4">
+                <select
+                  value={newRow.kr_etf_market_classification || ''}
+                  onChange={(e) =>
+                    handleInputChange('new', 'kr_etf_market_classification', e.target.value)
+                  }
+                  className="w-full px-3 py-1 bg-wealth-card border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+                >
+                  <option value="">선택하세요</option>
+                  {marketClassOptions.map((option) => (
+                    <option key={option.id} value={option.detail_code}>
+                      {option.detail_code_name}
+                    </option>
+                  ))}
+                </select>
+              </td>
             </>
           )}
           renderEditRow={(row) => (
@@ -752,77 +823,50 @@ function DomesticETF() {
                   )}
                 </select>
               </td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap">
-                {formatIntKO(row.latest_close)}
-              </td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap">
-                {formatIntKO(row.latest_volume)}
-              </td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.rsi18, 2)}
-              </td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.rsi30, 2)}
-              </td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
-                {formatIntKO(row.obv != null ? Math.round(Number(row.obv)) : null)}
-              </td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.macd_12_26, 4)}
-              </td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.macd_signal_9, 4)}
-              </td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.macd_histogram, 4)}
-              </td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.bb_width, 4)}
-              </td>
-              <td className="py-3 px-4 text-wealth-muted text-sm text-right whitespace-nowrap tabular-nums">
-                {formatTechDecimal(row.bb_percent_b, 4)}
+              <td className="py-3 px-4">
+                <select
+                  value={row.kr_etf_market_classification || ''}
+                  onChange={(e) =>
+                    handleInputChange(
+                      row.id,
+                      'kr_etf_market_classification',
+                      e.target.value
+                    )
+                  }
+                  className="w-full px-3 py-1 bg-wealth-card border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+                >
+                  <option value="">선택하세요</option>
+                  {marketClassOptions && marketClassOptions.length > 0 ? (
+                    marketClassOptions.map((option) => (
+                      <option key={option.id} value={option.detail_code}>
+                        {option.detail_code_name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>
+                      옵션 로딩 중...
+                    </option>
+                  )}
+                </select>
               </td>
             </>
           )}
           renderViewRow={(row) => {
             const etfTypeName = etfTypeOptions.find(opt => opt.detail_code === row.etf_type)?.detail_code_name || row.etf_type || '';
             const etfTaxTypeName = etfTaxTypeOptions.find(opt => opt.detail_code === row.etf_tax_type)?.detail_code_name || row.etf_tax_type || '';
+            const marketClassName =
+              marketClassOptions.find(
+                (opt) => opt.detail_code === row.kr_etf_market_classification
+              )?.detail_code_name ||
+              row.kr_etf_market_classification ||
+              '—';
             return (
               <>
                 <td className="py-3 px-4 text-white text-sm">{row.ticker}</td>
                 <td className="py-3 px-4 text-white text-sm">{row.name}</td>
                 <td className="py-3 px-4 text-white text-sm">{etfTypeName}</td>
                 <td className="py-3 px-4 text-white text-sm">{etfTaxTypeName}</td>
-                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap">
-                  {formatIntKO(row.latest_close)}
-                </td>
-                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap">
-                  {formatIntKO(row.latest_volume)}
-                </td>
-                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
-                  {formatTechDecimal(row.rsi18, 2)}
-                </td>
-                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
-                  {formatTechDecimal(row.rsi30, 2)}
-                </td>
-                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
-                  {formatIntKO(row.obv != null ? Math.round(Number(row.obv)) : null)}
-                </td>
-                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
-                  {formatTechDecimal(row.macd_12_26, 4)}
-                </td>
-                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
-                  {formatTechDecimal(row.macd_signal_9, 4)}
-                </td>
-                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
-                  {formatTechDecimal(row.macd_histogram, 4)}
-                </td>
-                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
-                  {formatTechDecimal(row.bb_width, 4)}
-                </td>
-                <td className="py-3 px-4 text-white text-sm text-right whitespace-nowrap tabular-nums">
-                  {formatTechDecimal(row.bb_percent_b, 4)}
-                </td>
+                <td className="py-3 px-4 text-white text-sm">{marketClassName}</td>
               </>
             );
           }}

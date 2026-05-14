@@ -11,6 +11,8 @@ function KRStocks() {
   const [searchQuery, setSearchQuery] = useState(''); // 검색어
   const [selectedMarket, setSelectedMarket] = useState(''); // 선택된 시장구분
   const [selectedIndustry, setSelectedIndustry] = useState(''); // 선택된 업종구분
+  /** '' 전체 | 'true' Y | 'false' N — kr_stocks.short_play_yn */
+  const [selectedShortPlay, setSelectedShortPlay] = useState('');
   const [industryOptions, setIndustryOptions] = useState([]); // 업종 코드/명 목록
   const [industryMap, setIndustryMap] = useState({}); // 업종코드 -> 업종명
   const [editingId, setEditingId] = useState(null);
@@ -25,7 +27,6 @@ function KRStocks() {
     short_play_yn: false,
     nxt_yn: false,
     use_yn: true,
-    suspend_yn: false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -57,8 +58,14 @@ function KRStocks() {
       filtered = filtered.filter(stock => stock.kr_industry_type === selectedIndustry);
     }
 
+    // 공매도 play 여부
+    if (selectedShortPlay !== '') {
+      const wantTrue = selectedShortPlay === 'true';
+      filtered = filtered.filter((stock) => Boolean(stock.short_play_yn) === wantTrue);
+    }
+
     setStocks(filtered);
-  }, [searchQuery, selectedMarket, selectedIndustry, allStocks]);
+  }, [searchQuery, selectedMarket, selectedIndustry, selectedShortPlay, allStocks]);
 
   const loadStocks = async () => {
     try {
@@ -82,6 +89,45 @@ function KRStocks() {
     } catch (err) {
       console.error('Fetch Error:', err);
       setError(`서버에 연결할 수 없습니다: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const parseDetailError = async (res) => {
+    try {
+      const body = await res.json();
+      if (typeof body.detail === 'string') return body.detail;
+      if (Array.isArray(body.detail)) {
+        return body.detail.map((e) => e.msg || JSON.stringify(e)).join('; ');
+      }
+      return JSON.stringify(body.detail || body);
+    } catch {
+      return res.statusText || '요청 실패';
+    }
+  };
+
+  const handleSyncLatestFromDailyChart = async () => {
+    if (editingId !== null) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE_URL}/sync-latest-from-daily-chart`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        setError(await parseDetailError(res));
+        return;
+      }
+      const reloadResponse = await fetch(`${API_BASE_URL}?skip=0&limit=10000`);
+      if (reloadResponse.ok) {
+        const data = await reloadResponse.json();
+        setAllStocks(data);
+      }
+    } catch (err) {
+      setError(err.message || '동기화 중 오류가 발생했습니다.');
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -128,7 +174,6 @@ function KRStocks() {
       short_play_yn: false,
       nxt_yn: false,
       use_yn: true,
-      suspend_yn: false,
     });
     setEditingId('new');
   };
@@ -234,7 +279,6 @@ function KRStocks() {
         short_play_yn: typeof stockData.short_play_yn === 'boolean' ? stockData.short_play_yn : false,
         nxt_yn: typeof stockData.nxt_yn === 'boolean' ? stockData.nxt_yn : false,
         use_yn: typeof stockData.use_yn === 'boolean' ? stockData.use_yn : true,
-        suspend_yn: typeof stockData.suspend_yn === 'boolean' ? stockData.suspend_yn : false,
       };
 
       let response;
@@ -275,7 +319,6 @@ function KRStocks() {
           short_play_yn: false,
           nxt_yn: false,
           use_yn: true,
-          suspend_yn: false,
         });
       } else {
         const errorData = await response.json();
@@ -335,7 +378,6 @@ function KRStocks() {
       short_play_yn: false,
       nxt_yn: false,
       use_yn: true,
-      suspend_yn: false,
       });
   };
 
@@ -366,13 +408,24 @@ function KRStocks() {
       <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-white">주식 목록</h2>
-          <button
-            onClick={handleAdd}
-            disabled={loading || editingId === 'new'}
-            className="px-4 py-2 bg-wealth-gold text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            + 추가
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={loading || editingId === 'new'}
+              className="px-4 py-2 bg-wealth-gold text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              + 추가
+            </button>
+            <button
+              type="button"
+              onClick={handleSyncLatestFromDailyChart}
+              disabled={loading || editingId !== null}
+              className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              기술지표 가져오기
+            </button>
+          </div>
         </div>
 
         {/* 검색 컴포넌트 */}
@@ -438,6 +491,20 @@ function KRStocks() {
                 ))}
               </select>
             </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-wealth-muted mb-2">
+                공매도 play
+              </label>
+              <select
+                value={selectedShortPlay}
+                onChange={(e) => setSelectedShortPlay(e.target.value)}
+                className="w-full max-w-xs px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-wealth-gold focus:border-transparent"
+              >
+                <option value="">전체</option>
+                <option value="true">Y</option>
+                <option value="false">N</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -478,14 +545,6 @@ function KRStocks() {
               width: '110px',
               nowrap: true,
               render: (value) => (value ? '사용' : '미사용'),
-            },
-            {
-              key: 'suspend_yn',
-              label: '거래정지여부',
-              align: 'center',
-              width: '110px',
-              nowrap: true,
-              render: (value) => (value ? 'Y' : 'N'),
             },
           ]}
           data={stocks}
@@ -584,16 +643,6 @@ function KRStocks() {
                   <option value="false">미사용</option>
                 </select>
               </td>
-              <td className="py-3 px-4 whitespace-nowrap" style={{ width: '110px' }}>
-                <select
-                  value={newRow.suspend_yn ? 'true' : 'false'}
-                  onChange={(e) => handleInputChange('new', 'suspend_yn', e.target.value === 'true')}
-                  className="w-full px-2 py-1 bg-wealth-card border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
-                >
-                  <option value="true">Y</option>
-                  <option value="false">N</option>
-                </select>
-              </td>
             </>
           )}
           renderEditRow={(row) => (
@@ -679,16 +728,6 @@ function KRStocks() {
                   <option value="false">미사용</option>
                 </select>
               </td>
-              <td className="py-3 px-4 whitespace-nowrap" style={{ width: '110px' }}>
-                <select
-                  value={row.suspend_yn ? 'true' : 'false'}
-                  onChange={(e) => handleInputChange(row.id, 'suspend_yn', e.target.value === 'true')}
-                  className="w-full px-2 py-1 bg-wealth-card border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
-                >
-                  <option value="true">Y</option>
-                  <option value="false">N</option>
-                </select>
-              </td>
             </>
           )}
           renderViewRow={(row) => (
@@ -720,9 +759,6 @@ function KRStocks() {
               </td>
               <td className="py-3 px-4 text-white text-sm whitespace-nowrap text-center" style={{ width: '110px' }}>
                 {row.use_yn ? '사용' : '미사용'}
-              </td>
-              <td className="py-3 px-4 text-white text-sm whitespace-nowrap text-center" style={{ width: '110px' }}>
-                {row.suspend_yn ? 'Y' : 'N'}
               </td>
             </>
           )}

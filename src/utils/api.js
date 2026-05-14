@@ -59,7 +59,9 @@ export const API_ENDPOINTS = {
   
   // Financial Institutions
   FINANCIAL_INSTITUTIONS: '/api/v1/financial-institutions',
-  
+  /** basic.asset_management_inst — domestic_etfs.asset_manager 와 code 매칭 */
+  ASSET_MANAGEMENT_INSTITUTIONS: '/api/v1/asset-management-institutions',
+
   // ETFs
   DOMESTIC_ETFS: '/api/v1/domestic-etfs',
   DOMESTIC_ETFS_DAILY_CHART: '/api/v1/domestic-etfs-daily-chart',
@@ -99,17 +101,11 @@ export const API_ENDPOINTS = {
   // Stock Trading Log
   STOCK_TRADING_LOGS: '/api/v1/stock-trading-logs',
   
-  // KR Stocks
+  // KR Stocks (국장 지표 등은 Stocks RestAPI + getStocksRestApiUrl, 환경설정 CRUD는 기본 API)
   KR_STOCKS: '/api/v1/kr-stocks',
 
-  // KR Stocks Invest Volume
-  KR_STOCKS_INVEST_VOLUME: '/api/v1/kr-stocks-invest-volume',
-  
   // KR Stocks Trading Value (투자자별 거래대금)
   KR_STOCKS_TRADING_VALUE: '/api/v1/kr-stocks-trading-value',
-  
-  // KR Stocks Shorting (공매도수량, 공매도잔고)
-  KR_STOCKS_SHORTING: '/api/v1/kr-stocks-shorting',
   
   // KR Stocks Daily Chart
   KR_STOCKS_DAILY_CHART: '/api/v1/kr-stocks-daily-chart',

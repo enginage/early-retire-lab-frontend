@@ -26,6 +26,7 @@ import USAStocks from '../pages/Settings/USAStocks';
 import DomesticETF from '../pages/Settings/DomesticETF';
 import USAETF from '../pages/Settings/USAETF';
 import DomesticEtfIndicatorsView from '../pages/InvestmentIndicators/DomesticEtfIndicatorsView';
+import KrMarketIndicatorsView from '../pages/InvestmentIndicators/KrMarketIndicatorsView';
 import UsaMarketIndicatorsView from '../pages/InvestmentIndicators/UsaMarketIndicatorsView';
 
 const TAB_COMPONENTS = {
@@ -54,6 +55,7 @@ const TAB_COMPONENTS = {
   'domestic-etf': DomesticETF,
   'usa-etf': USAETF,
   'domestic-etf-indicators': DomesticEtfIndicatorsView,
+  'kr-market-indicators': KrMarketIndicatorsView,
   'usa-market-indicators': UsaMarketIndicatorsView,
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
 
 // backend-fastapi가 아닌 Stocks RestAPI (VITE_STOCKS_REST_API_URL / 기본 :8080)
@@ -13,15 +13,22 @@ let highDividendBootstrapCache = null;
 let highDividendBootstrapPromise = null;
 
 async function fetchHighDividendBootstrap() {
-  if (highDividendBootstrapCache) {
+  if (
+    highDividendBootstrapCache &&
+    Object.prototype.hasOwnProperty.call(
+      highDividendBootstrapCache,
+      'marketClassDetails'
+    )
+  ) {
     return highDividendBootstrapCache;
   }
+  highDividendBootstrapCache = null;
   if (highDividendBootstrapPromise) {
     return highDividendBootstrapPromise;
   }
   highDividendBootstrapPromise = (async () => {
     const [etfRes, masterRes] = await Promise.all([
-      fetch(`${API_BASE_URL}?etf_tax_type=F`),
+      fetch(`${API_BASE_URL}?etf_type=high_dividend`),
       fetch(MASTER_API_BASE_URL),
     ]);
 
@@ -33,6 +40,7 @@ async function fetchHighDividendBootstrap() {
     const etfs = await etfRes.json();
     let periodDetails = [];
     let defaultPeriod = null;
+    let marketClassDetails = [];
 
     if (masterRes.ok) {
       const masters = await masterRes.json();
@@ -51,9 +59,20 @@ async function fetchHighDividendBootstrap() {
             null;
         }
       }
+      const mcMaster = masters.find(
+        (m) => m.code === 'kr_etf_market_classification'
+      );
+      if (mcMaster) {
+        const mcRes = await fetch(
+          `${DETAIL_API_BASE_URL}?master_id=${mcMaster.id}&skip=0&limit=500`
+        );
+        if (mcRes.ok) {
+          marketClassDetails = await mcRes.json();
+        }
+      }
     }
 
-    const payload = { etfs, periodDetails, defaultPeriod };
+    const payload = { etfs, periodDetails, defaultPeriod, marketClassDetails };
     highDividendBootstrapCache = payload;
     highDividendBootstrapPromise = null;
     return payload;
@@ -93,6 +112,15 @@ function sortDividendsByRecordDateDesc(rows) {
   );
 }
 
+/** 시장분류 상세 중 표시명 '국내' → 기본 선택용 detail_code */
+function resolveDefaultMarketClassCode(details) {
+  const list = details || [];
+  const domestic = list.find(
+    (d) => String(d.detail_code_name || '').trim() === '국내'
+  );
+  return domestic?.detail_code ?? list[0]?.detail_code ?? '';
+}
+
 /** UI 기간 → API months_ago (차트 캐시 키와 동일) */
 function monthsAgoFromPeriodDetail(selectedPeriod) {
   if (!selectedPeriod) return 12;
@@ -108,7 +136,10 @@ function monthsAgoFromPeriodDetail(selectedPeriod) {
 }
 
 function DomesticHighDividendSimulation() {
-  const [etfOptions, setEtfOptions] = useState([]);
+  const [allEtfOptions, setAllEtfOptions] = useState([]);
+  const [marketClassOptions, setMarketClassOptions] = useState([]);
+  /** common_code_detail.detail_code (기본: '국내' 표시명에 해당하는 코드) */
+  const [selectedMarketClassCode, setSelectedMarketClassCode] = useState('');
   const [selectedEtf, setSelectedEtf] = useState(null);
   const [periodOptions, setPeriodOptions] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState(null);
@@ -131,10 +162,13 @@ function DomesticHighDividendSimulation() {
       try {
         setLoading(true);
         setError(null);
-        const { etfs, periodDetails, defaultPeriod } =
+        const { etfs, periodDetails, defaultPeriod, marketClassDetails } =
           await fetchHighDividendBootstrap();
         if (cancelled) return;
-        setEtfOptions(etfs);
+        setAllEtfOptions(etfs);
+        const mcList = marketClassDetails || [];
+        setMarketClassOptions(mcList);
+        setSelectedMarketClassCode(resolveDefaultMarketClassCode(mcList));
         setPeriodOptions(periodDetails);
         if (defaultPeriod) {
           setSelectedPeriod(defaultPeriod);
@@ -154,6 +188,22 @@ function DomesticHighDividendSimulation() {
       cancelled = true;
     };
   }, []);
+
+  const filteredEtfOptions = useMemo(() => {
+    if (!selectedMarketClassCode) return [];
+    return allEtfOptions.filter(
+      (e) =>
+        (e.kr_etf_market_classification || '') === selectedMarketClassCode
+    );
+  }, [allEtfOptions, selectedMarketClassCode]);
+
+  useEffect(() => {
+    setSelectedEtf((prev) => {
+      if (!prev) return prev;
+      const stillValid = filteredEtfOptions.some((e) => e.id === prev.id);
+      return stillValid ? prev : null;
+    });
+  }, [filteredEtfOptions]);
 
   // 종목 변경 시에만 1년 배당 + 12/6/3개월 매입단가(종가) 일괄 조회 후 캐시
   useEffect(() => {
@@ -178,11 +228,12 @@ function DomesticHighDividendSimulation() {
         const base = CHART_API_BASE_URL;
         const divUrl = `${DIVIDEND_API_BASE_URL}/etf/${etfId}/period?months_ago=12`;
 
-        const [res12, res6, res3, divRes] = await Promise.all([
+        const [res12, res6, res3, divRes, firstRes] = await Promise.all([
           fetch(`${base}/etf/${etfId}/period?months_ago=12`),
           fetch(`${base}/etf/${etfId}/period?months_ago=6`),
           fetch(`${base}/etf/${etfId}/period?months_ago=3`),
           fetch(divUrl),
+          fetch(`${base}/etf/${etfId}/first`),
         ]);
 
         const parseClose = async (res) => {
@@ -192,11 +243,16 @@ function DomesticHighDividendSimulation() {
           return data?.close != null ? Number(data.close) : null;
         };
 
-        const [close12, close6, close3] = await Promise.all([
+        const [close12, close6, close3, firstTradingClose] = await Promise.all([
           parseClose(res12),
           parseClose(res6),
           parseClose(res3),
+          parseClose(firstRes),
         ]);
+
+        /** 기간 구간 일봉이 없을 때(상장 이후 데이터가 짧을 때)만 최초 거래일 종가로 보정 */
+        const purchaseForPeriod = (periodClose) =>
+          periodClose != null ? periodClose : firstTradingClose ?? null;
 
         let dividendsRaw = [];
         if (divRes.ok) {
@@ -210,7 +266,12 @@ function DomesticHighDividendSimulation() {
 
         setEtfDataCache({
           etfId,
-          purchaseCloseByMonths: { 12: close12, 6: close6, 3: close3 },
+          purchaseCloseByMonths: {
+            12: purchaseForPeriod(close12),
+            6: purchaseForPeriod(close6),
+            3: purchaseForPeriod(close3),
+          },
+          firstTradingClose,
           dividendsRaw,
         });
       } catch (err) {
@@ -318,6 +379,20 @@ function DomesticHighDividendSimulation() {
     return Number(value).toLocaleString('ko-KR');
   };
 
+  /** 주당분배금 ÷ 매입단가 × 100 */
+  const formatDividendYieldVsPurchase = (dividendAmtPerShare) => {
+    if (
+      purchasePrice == null ||
+      purchasePrice <= 0 ||
+      dividendAmtPerShare == null
+    ) {
+      return '-';
+    }
+    const pct = (Number(dividendAmtPerShare) / Number(purchasePrice)) * 100;
+    if (Number.isNaN(pct)) return '-';
+    return `${pct.toFixed(2)}%`;
+  };
+
   /** 일반계좌: 행별 과세표준(주당×수량)에 15.4% 적용 후 원 단위 절사 */
   const rowDividendIncomeTax154 = (dividend) =>
     Math.floor((dividend.taxable_amt || 0) * quantity * 0.154);
@@ -329,6 +404,22 @@ function DomesticHighDividendSimulation() {
           0
         )
       : 0;
+
+  /** 분배금지급내역 표와 동일: 행별 실수령액 합계 */
+  const totalNetDividendsReceived =
+    quantity > 0 && dividendData.length > 0
+      ? dividendData.reduce((sum, d) => {
+          const gross = d.dividend_amt * quantity;
+          const tax = Math.floor((d.taxable_amt || 0) * quantity * 0.154);
+          return sum + (gross - tax);
+        }, 0)
+      : 0;
+
+  const costBasis =
+    purchasePrice > 0 && quantity > 0 ? purchasePrice * quantity : 0;
+  const totalReturnWithDividends = unrealizedProfit + totalNetDividendsReceived;
+  const totalReturnPctVsCost =
+    costBasis > 0 ? (totalReturnWithDividends / costBasis) * 100 : null;
 
   return (
     <div className="min-h-screen bg-wealth-dark pb-20">
@@ -346,8 +437,39 @@ function DomesticHighDividendSimulation() {
 
           {/* 입력 섹션 */}
           <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
-            <h2 className="text-xl font-semibold mb-6 text-wealth-text">투자 정보 입력</h2>
-            
+            <h2 className="text-xl font-semibold mb-4 text-wealth-text">투자 정보 입력</h2>
+
+            <div className="mb-6">
+              <p className="text-sm text-wealth-muted mb-2">시장분류</p>
+              <div
+                className="inline-flex flex-wrap gap-2"
+                role="group"
+                aria-label="시장분류 필터"
+              >
+                {marketClassOptions.map((opt) => {
+                  const active =
+                    selectedMarketClassCode === opt.detail_code;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      disabled={loading}
+                      onClick={() =>
+                        setSelectedMarketClassCode(opt.detail_code)
+                      }
+                      className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 ${
+                        active
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-wealth-card/80 border border-blue-500/70 text-blue-300 hover:bg-blue-500/15'
+                      }`}
+                    >
+                      {opt.detail_code_name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {error && (
               <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400 mb-6">
                 {error}
@@ -363,14 +485,16 @@ function DomesticHighDividendSimulation() {
                 <select
                   value={selectedEtf?.id || ''}
                   onChange={(e) => {
-                    const etf = etfOptions.find(etf => etf.id === parseInt(e.target.value));
+                    const etf = filteredEtfOptions.find(
+                      (row) => row.id === parseInt(e.target.value, 10)
+                    );
                     setSelectedEtf(etf);
                   }}
                   className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-wealth-gold/50 focus:border-transparent transition-all"
                   disabled={loading}
                 >
                   <option value="">종목을 선택하세요</option>
-                  {etfOptions.map(etf => (
+                  {filteredEtfOptions.map((etf) => (
                     <option key={etf.id} value={etf.id}>
                       {etf.ticker} - {etf.name}
                     </option>
@@ -478,26 +602,64 @@ function DomesticHighDividendSimulation() {
                   </div>
                 )}
               </div>
+
+              {/* 총수익(미실현 + 분배 실수령) 및 총수익률 */}
+              <div
+                className={`bg-wealth-card/30 backdrop-blur-sm rounded-lg border p-4 ${
+                  costBasis <= 0
+                    ? 'border-gray-700/50'
+                    : totalReturnWithDividends >= 0
+                      ? 'border-green-500/50'
+                      : 'border-red-500/50'
+                }`}
+              >
+                <div className="text-sm text-wealth-muted mb-1">총수익률(분배금 포함)</div>
+                {costBasis > 0 ? (
+                  <>
+                    <div
+                      className={`text-2xl font-bold ${
+                        totalReturnWithDividends >= 0 ? 'text-green-400' : 'text-red-400'
+                      }`}
+                    >
+                      {totalReturnWithDividends >= 0 ? '+' : ''}
+                      {formatCurrency(totalReturnWithDividends)}원
+                    </div>
+                    {totalReturnPctVsCost != null && (
+                      <div
+                        className={`text-xs mt-1 tabular-nums ${
+                          totalReturnWithDividends >= 0 ? 'text-green-400' : 'text-red-400'
+                        }`}
+                      >
+                        {totalReturnPctVsCost >= 0 ? '+' : ''}
+                        {totalReturnPctVsCost.toFixed(2)}%
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-2xl font-bold text-wealth-muted">-</div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* 배당입금내역 */}
+          {/* 분배금지급내역 */}
           <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
-            <h2 className="text-xl font-semibold mb-6 text-wealth-text">배당입금내역</h2>
+            <h2 className="text-xl font-semibold mb-6 text-wealth-text">분배금지급내역</h2>
               {dividendData.length === 0 ? (
                 <div className="text-center py-8 text-wealth-muted">
-                  배당 데이터가 없습니다.
+                   분배금 지급 데이터가 없습니다.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse min-w-[1040px]">
+                  <table className="w-full border-collapse min-w-[1180px]">
                     <thead>
                       <tr className="border-b border-gray-700">
                         <th className="text-left py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">지급기준일</th>
                         <th className="text-left py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">실지급일</th>
-                        <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">배당금액(원)</th>
+                        <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">주당분배금(원)</th>
+                        <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">매입가 대비 분배율</th>
                         <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">주당과세표준액(원)</th>
-                        <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">배당금액({quantity}주)</th>
+                        <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">분배금액({quantity}주)</th>
                         <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">소득세</th>
                         <th className="text-right py-3 px-4 text-wealth-muted font-medium whitespace-nowrap">실수령액</th>
                       </tr>
@@ -518,6 +680,9 @@ function DomesticHighDividendSimulation() {
                           <td className="py-3 px-4 text-wealth-text text-right whitespace-nowrap">
                             {formatCurrency(dividend.dividend_amt)}
                           </td>
+                          <td className="py-3 px-4 text-wealth-text text-right whitespace-nowrap tabular-nums">
+                            {formatDividendYieldVsPurchase(dividend.dividend_amt)}
+                          </td>
                           <td className="py-3 px-4 text-wealth-text text-right whitespace-nowrap">
                             {formatCurrency(dividend.taxable_amt || 0)}
                           </td>
@@ -536,7 +701,7 @@ function DomesticHighDividendSimulation() {
                     </tbody>
                     <tfoot>
                       <tr className="border-t-2 border-gray-600 bg-wealth-card/30">
-                        <td colSpan="4" className="py-3 px-4 text-wealth-text font-semibold text-right">
+                        <td colSpan="5" className="py-3 px-4 text-wealth-text font-semibold text-right">
                           합계
                         </td>
                         <td className="py-3 px-4 text-wealth-text text-right font-bold text-lg">

@@ -8,7 +8,6 @@ const COMMON_CODE_DETAILS_API = getApiUrl(API_ENDPOINTS.COMMON_CODE_DETAILS);
 const THEMES_API = getApiUrl(API_ENDPOINTS.THEMES);
 const FOLLOW_UP_STOCKS_API = getApiUrl('/api/v1/follow-up-stocks');
 const KR_STOCKS_TRADING_VALUE_API = getApiUrl(API_ENDPOINTS.KR_STOCKS_TRADING_VALUE);
-const KR_STOCKS_SHORTING_API = getApiUrl(API_ENDPOINTS.KR_STOCKS_SHORTING);
 const KR_STOCKS_DAILY_CHART_API = getApiUrl(API_ENDPOINTS.KR_STOCKS_DAILY_CHART);
 const RELATED_STOCKS_API = getApiUrl('/api/v1/related-stocks');
 
@@ -21,7 +20,6 @@ function KRStockSummary() {
   const [leaderStock, setLeaderStock] = useState(null);
   const [industryMap, setIndustryMap] = useState({});
   const [tradingValues, setTradingValues] = useState([]);
-  const [shortings, setShortings] = useState([]);
   const [dailyCharts, setDailyCharts] = useState([]);
   const [relatedStocksLatestCharts, setRelatedStocksLatestCharts] = useState({});
   const [relatedStockGroups, setRelatedStockGroups] = useState([]);
@@ -72,7 +70,6 @@ function KRStockSummary() {
     setSameLeaderStocks([]);
     setLeaderStock(null);
     setTradingValues([]);
-    setShortings([]);
     setDailyCharts([]);
     setRelatedStocksLatestCharts({});
     setRelatedStockGroups([]);
@@ -115,19 +112,6 @@ function KRStockSummary() {
         }
       } catch (tradingErr) {
         console.error('투자자별 거래대금 로드 실패:', tradingErr);
-      }
-
-      // 최신 공매도 현황 20건 조회
-      try {
-        const shortingResponse = await fetch(
-          `${KR_STOCKS_SHORTING_API}/stock/${selectedStock.id}/latest?limit=20`
-        );
-        if (shortingResponse.ok) {
-          const shortingData = await shortingResponse.json();
-          setShortings(shortingData);
-        }
-      } catch (shortingErr) {
-        console.error('공매도 현황 로드 실패:', shortingErr);
       }
 
       // 최신 일일 차트 데이터 20건 조회 (종가, 등락률, 거래량)
@@ -452,8 +436,6 @@ function KRStockSummary() {
                     <tr className="border-b border-gray-700">
                       <th className="py-2 px-3 text-left text-wealth-muted whitespace-nowrap">날짜</th>
                       <th className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap">종가</th>
-                      <th className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap">공매도수량(주)</th>
-                      <th className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap">공매도잔고(주)</th>
                       <th className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap">등락률</th>
                       <th className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap">거래량(주)</th>
                       <th className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap">거래대금(원)</th>
@@ -466,18 +448,11 @@ function KRStockSummary() {
                   <tbody>
                     {tradingValues.map((item) => {
                       const chartByDate = dailyCharts.find((c) => c.date === item.date);
-                      const shortingByDate = shortings.find((s) => s.date === item.date);
                       return (
                       <tr key={`${item.stock_id}-${item.date}`} className="border-b border-gray-800/50">
                         <td className="py-2 px-3 text-white whitespace-nowrap">{item.date}</td>
                         <td className="py-2 px-3 text-right text-white whitespace-nowrap">
                           {chartByDate?.close != null ? Number(chartByDate.close).toLocaleString() : '-'}
-                        </td>
-                        <td className="py-2 px-3 text-right text-white whitespace-nowrap">
-                          {shortingByDate?.short_volume != null ? Number(shortingByDate.short_volume).toLocaleString() : '-'}
-                        </td>
-                        <td className="py-2 px-3 text-right text-white whitespace-nowrap">
-                          {shortingByDate?.short_balance != null ? Number(shortingByDate.short_balance).toLocaleString() : '-'}
                         </td>
                         <td className={`py-2 px-3 text-right whitespace-nowrap ${
                           chartByDate?.fluctuation_rate == null ? 'text-wealth-muted' : getVolumeColor(Number(chartByDate.fluctuation_rate))
