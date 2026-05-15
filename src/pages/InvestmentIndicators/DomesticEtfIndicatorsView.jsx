@@ -984,6 +984,9 @@ function EtfMiniGrid({ rows, marketClassNameByCode }) {
   const stickyNameTd =
     'py-2 px-3 text-white sticky left-20 z-10 min-w-[12rem] max-w-[13rem] w-[13rem] box-border bg-wealth-card group-hover:bg-gray-800/90 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.35)]';
   const colCount = 13;
+  /** 편입 7열 테이블 — 본문 폭에 맞춤(상위는 w-fit 로 테이블에 맞춤) */
+  const pdfPortfolioTableClass =
+    'text-xs sm:text-sm border-collapse min-w-[760px] max-w-full';
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-700/50 bg-wealth-card/30">
       <table className="w-full text-sm border-collapse min-w-[1260px]">
@@ -1066,12 +1069,7 @@ function EtfMiniGrid({ rows, marketClassNameByCode }) {
               {openPdfEtfId === row.id && (
                 <tr className="bg-wealth-card/25 border-b border-gray-700/40">
                   <td colSpan={colCount} className="px-3 py-3 pl-6 align-top">
-                    <div className="rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden">
-                      <p className="text-[11px] text-wealth-muted px-3 py-2 border-b border-gray-700/40">
-                        stock.domestic_etfs_pdf (
-                        <span className="font-mono text-wealth-gold/80">etf_id</span>={row.id},{' '}
-                        <span className="font-mono text-wealth-gold/80">{row.ticker}</span>)
-                      </p>
+                    <div className="w-fit max-w-full min-w-[760px] rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden">
                       {pdfState.status === 'loading' && (
                         <p className="text-sm text-wealth-muted px-3 py-4">불러오는 중…</p>
                       )}
@@ -1084,21 +1082,39 @@ function EtfMiniGrid({ rows, marketClassNameByCode }) {
                         </p>
                       )}
                       {pdfState.status === 'done' && pdfState.items.length > 0 && (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-xs sm:text-sm border-collapse min-w-[560px]">
+                        <div className="w-fit max-w-full overflow-x-auto">
+                          <table className={pdfPortfolioTableClass}>
                             <thead>
                               <tr className="border-b border-gray-700/60 text-left bg-wealth-card/30">
                                 <th className="py-2 px-3 font-medium text-wealth-muted">
-                                  pdf_ticker
+                                  티커
                                 </th>
                                 <th className="py-2 px-3 font-medium text-wealth-muted">
                                   종목명
                                 </th>
-                                <th className="py-2 px-3 font-medium text-right text-wealth-muted">
-                                  contract_cnt
+                                <th
+                                  className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted"
+                                  title="kr_stocks.latest_close"
+                                >
+                                  종가
+                                </th>
+                                <th
+                                  className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted"
+                                  title="kr_stocks.latest_volume"
+                                >
+                                  거래량
+                                </th>
+                                <th
+                                  className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted"
+                                  title="kr_stocks.rsi18"
+                                >
+                                  RSI(18)
                                 </th>
                                 <th className="py-2 px-3 font-medium text-right text-wealth-muted">
-                                  proportion
+                                  수량
+                                </th>
+                                <th className="py-2 px-3 font-medium text-right text-wealth-muted">
+                                  비중
                                 </th>
                               </tr>
                             </thead>
@@ -1112,18 +1128,36 @@ function EtfMiniGrid({ rows, marketClassNameByCode }) {
                                     {p.pdf_ticker}
                                   </td>
                                   <td
-                                    className="py-1.5 px-3 text-wealth-muted max-w-[14rem] truncate"
+                                    className="py-1.5 px-3 text-wealth-muted min-w-[12rem] truncate"
                                     title={p.stock_name || ''}
                                   >
                                     {p.stock_name != null && p.stock_name !== ''
                                       ? p.stock_name
                                       : '-'}
                                   </td>
-                                  <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted">
-                                    {formatTechDecimal(p.contract_cnt, 6)}
+                                  <td
+                                    className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap"
+                                    title="최근 종가 (kr_stocks)"
+                                  >
+                                    {formatIntKO(p.stock_latest_close)}
+                                  </td>
+                                  <td
+                                    className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap"
+                                    title="최근 거래량 (kr_stocks)"
+                                  >
+                                    {formatIntKO(p.stock_latest_volume)}
+                                  </td>
+                                  <td
+                                    className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap"
+                                    title="RSI(18) (kr_stocks)"
+                                  >
+                                    {formatTechDecimal(p.stock_rsi18, 2)}
                                   </td>
                                   <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted">
-                                    {formatTechDecimal(p.proportion, 6)}
+                                    {formatIntKO(p.contract_cnt)}
+                                  </td>
+                                  <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted">
+                                    {formatTechDecimal(p.proportion, 2)}
                                   </td>
                                 </tr>
                               ))}
