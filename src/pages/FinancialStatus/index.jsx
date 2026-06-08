@@ -5,12 +5,14 @@ import ExpenseManagement from './ExpenseManagement';
 import ISAAccountManagement from './ISAAccountManagement';
 import PensionFundAccountManagement from './PensionFundAccountManagement';
 import IRPAccountManagement from './IRPAccountManagement';
+import AssetIndicatorManagement from './AssetIndicatorManagement';
 
 const MENUS = [
   { key: 'expense', label: '월평균지출' },
   { key: 'isa', label: 'ISA' },
   { key: 'pension-fund', label: '연금저축펀드' },
   { key: 'irp', label: 'IRP' },
+  { key: 'irp-asset-indicators', label: '보유자산 기술지표' },
 ];
 
 function FinancialStatus() {
@@ -43,6 +45,8 @@ function FinancialStatus() {
         return <PensionFundAccountManagement />;
       case 'irp':
         return <IRPAccountManagement />;
+      case 'irp-asset-indicators':
+        return <AssetIndicatorManagement />;
       default:
         return <ExpenseManagement />;
     }

@@ -2,17 +2,7 @@ import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import AppLayout from '../layouts/AppLayout';
 import TabbedContent from '../components/TabbedContent';
-import { useTabs } from '../contexts/TabContext';
-
-const TAB_KEYS = [
-  'opportunity-cost', 'kr-stock-summary', 'stock-trading-log',
-  'theme-management', 'market-condition-theme', 'follow-up-stocks', 'related-stocks', 'limitup-surge-analysis', 'enterprise-analysis', 'stock-news-history', 'stock-disclosure-history', 'batch-jobs',
-  'early-retirement', 'domestic-high-dividend', 'usa-high-dividend',
-  'domestic-etf-indicators', 'kr-market-indicators', 'usa-market-indicators',
-  'expense',
-  'basic', 'investment-indicators-settings', 'commoncode', 'financial',
-  'kr-stocks', 'usa-stocks', 'domestic-etf', 'usa-etf',
-];
+import { useTabs, isTabMenuKey } from '../contexts/TabContext';
 
 export default function Workspace() {
   const location = useLocation();
@@ -20,7 +10,7 @@ export default function Workspace() {
 
   useEffect(() => {
     const tabKey = location.state?.openTab;
-    if (tabKey && TAB_KEYS.includes(tabKey)) {
+    if (tabKey && isTabMenuKey(tabKey)) {
       openTab(tabKey);
     }
   }, [location.state?.openTab, openTab]);

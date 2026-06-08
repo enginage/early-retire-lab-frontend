@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext';
 import { TabProvider } from './contexts/TabContext';
 import Introduction from './pages/Introduction';
-import AppLayout from './layouts/AppLayout';
 import Workspace from './pages/Workspace';
 import RedirectToWorkspace from './components/RedirectToWorkspace';
 import FreeLiving from './pages/FreeLiving';
@@ -52,6 +51,10 @@ function App() {
             <Route path="/domestic-high-dividend" element={<Navigate to="/workspace" state={{ openTab: 'domestic-high-dividend' }} replace />} />
             <Route path="/usa-high-dividend" element={<Navigate to="/workspace" state={{ openTab: 'usa-high-dividend' }} replace />} />
             <Route path="/expense" element={<Navigate to="/workspace" state={{ openTab: 'expense' }} replace />} />
+            <Route path="/isa" element={<Navigate to="/workspace" state={{ openTab: 'isa' }} replace />} />
+            <Route path="/pension-fund" element={<Navigate to="/workspace" state={{ openTab: 'pension-fund' }} replace />} />
+            <Route path="/irp" element={<Navigate to="/workspace" state={{ openTab: 'irp' }} replace />} />
+            <Route path="/irp-asset-indicators" element={<Navigate to="/workspace" state={{ openTab: 'irp-asset-indicators' }} replace />} />
             <Route path="/basic" element={<Navigate to="/workspace" state={{ openTab: 'basic' }} replace />} />
             <Route path="/investment-indicators-settings" element={<Navigate to="/workspace" state={{ openTab: 'investment-indicators-settings' }} replace />} />
             <Route path="/commoncode" element={<Navigate to="/workspace" state={{ openTab: 'commoncode' }} replace />} />

@@ -35,6 +35,10 @@ export const TAB_LABELS = {
   'usa-market-indicators': '미국시장지표',
   // 재무상태
   'expense': '월평균지출',
+  'isa': 'ISA',
+  'pension-fund': '연금저축펀드',
+  'irp': 'IRP',
+  'irp-asset-indicators': '보유자산 기술지표',
   // 환경설정
   'basic': '기본설정',
   'investment-indicators-settings': '투자지표 설정',

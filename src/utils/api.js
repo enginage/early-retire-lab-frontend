@@ -85,6 +85,9 @@ export const API_ENDPOINTS = {
   
   IRP_ACCOUNTS: '/api/v1/irp-accounts',
   IRP_ACCOUNT_DETAILS: '/api/v1/irp-account-details',
+
+  ASSET_INDICATOR_ACCOUNTS: '/api/v1/asset-indicator-accounts',
+  ASSET_INDICATOR_HOLDINGS: '/api/v1/asset-indicator-holdings',
   
   PENSION_FUND_ACCOUNTS: '/api/v1/pension-fund-accounts',
   PENSION_FUND_ACCOUNT_DETAILS: '/api/v1/pension-fund-account-details',

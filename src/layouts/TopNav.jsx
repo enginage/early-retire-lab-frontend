@@ -34,9 +34,10 @@ const ALL_MENU_ITEMS = [
     path: '/financial-status',
     submenus: [
       { key: 'expense', label: '월평균지출', path: '/financial-status?menu=expense' },
-      // { key: 'isa', label: 'ISA', path: '/financial-status?menu=isa' },
-      // { key: 'pension-fund', label: '연금저축펀드', path: '/financial-status?menu=pension-fund' },
-      // { key: 'irp', label: 'IRP', path: '/financial-status?menu=irp' },
+      { key: 'isa', label: 'ISA', path: '/financial-status?menu=isa' },
+      { key: 'pension-fund', label: '연금저축펀드', path: '/financial-status?menu=pension-fund' },
+      { key: 'irp', label: 'IRP', path: '/financial-status?menu=irp' },
+      { key: 'irp-asset-indicators', label: '보유자산 기술지표', path: '/financial-status?menu=irp-asset-indicators' },
     ],
   },
   {
@@ -115,6 +116,11 @@ const TopNav = () => {
   const handleLogout = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const openWorkspaceTab = (key, label) => {
+    openTab(key, label);
+    navigate('/workspace', { replace: true, state: { openTab: key } });
   };
 
   const toggleDropdown = (key) => {
@@ -288,8 +294,7 @@ const TopNav = () => {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      openTab(submenu.key, submenu.label);
-                      navigate(submenu.path);
+                      openWorkspaceTab(submenu.key, submenu.label);
                       closeMobileMenu();
                       closeDropdown();
                     }}
@@ -424,8 +429,7 @@ const TopNav = () => {
                                   key={submenu.key}
                                   type="button"
                                   onClick={() => {
-                                    openTab(submenu.key, submenu.label);
-                                    navigate(submenu.path);
+                                    openWorkspaceTab(submenu.key, submenu.label);
                                     closeDropdown();
                                   }}
                                   className={`flex items-center w-full px-4 py-3 text-sm transition-colors whitespace-nowrap text-left ${

@@ -17,6 +17,10 @@ import EarlyRetirementSimulation from '../pages/ExperienceLab/EarlyRetirementSim
 import DomesticHighDividendSimulation from '../pages/ExperienceLab/DomesticHighDividendSimulation';
 import USAHighDividendSimulation from '../pages/ExperienceLab/USAHighDividendSimulation';
 import ExpenseManagement from '../pages/FinancialStatus/ExpenseManagement';
+import ISAAccountManagement from '../pages/FinancialStatus/ISAAccountManagement';
+import PensionFundAccountManagement from '../pages/FinancialStatus/PensionFundAccountManagement';
+import IRPAccountManagement from '../pages/FinancialStatus/IRPAccountManagement';
+import AssetIndicatorManagement from '../pages/FinancialStatus/AssetIndicatorManagement';
 import BasicSettings from '../pages/Settings/BasicSettings';
 import InvestmentIndicatorsSettings from '../pages/Settings/InvestmentIndicatorsSettings';
 import CommonCode from '../pages/Settings/CommonCode';
@@ -46,6 +50,10 @@ const TAB_COMPONENTS = {
   'domestic-high-dividend': DomesticHighDividendSimulation,
   'usa-high-dividend': USAHighDividendSimulation,
   'expense': ExpenseManagement,
+  'isa': ISAAccountManagement,
+  'pension-fund': PensionFundAccountManagement,
+  'irp': IRPAccountManagement,
+  'irp-asset-indicators': AssetIndicatorManagement,
   'basic': BasicSettings,
   'investment-indicators-settings': InvestmentIndicatorsSettings,
   'commoncode': CommonCode,

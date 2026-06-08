@@ -101,19 +101,6 @@ function KRStockSummary() {
 
       setStock(selectedStock);
 
-      // 최신 투자자별 거래대금 20건 조회
-      try {
-        const tradingResponse = await fetch(
-          `${KR_STOCKS_TRADING_VALUE_API}/stock/${selectedStock.id}/latest?limit=20`
-        );
-        if (tradingResponse.ok) {
-          const tradingData = await tradingResponse.json();
-          setTradingValues(tradingData);
-        }
-      } catch (tradingErr) {
-        console.error('투자자별 거래대금 로드 실패:', tradingErr);
-      }
-
       // 최신 일일 차트 데이터 20건 조회 (종가, 등락률, 거래량)
       try {
         const chartResponse = await fetch(
@@ -125,6 +112,19 @@ function KRStockSummary() {
         }
       } catch (chartErr) {
         console.error('일일 차트 데이터 로드 실패:', chartErr);
+      }
+
+      // 최신 투자자별 거래대금 20건 조회
+      try {
+        const tradingResponse = await fetch(
+          `${KR_STOCKS_TRADING_VALUE_API}/stock/${selectedStock.id}/latest?limit=20`
+        );
+        if (tradingResponse.ok) {
+          const tradingData = await tradingResponse.json();
+          setTradingValues(tradingData);
+        }
+      } catch (tradingErr) {
+        console.error('투자자별 거래대금 로드 실패:', tradingErr);
       }
 
       // 해당 주식이 속한 테마 조회 (stock_id 중심 - 전체 테마 loop 없이)
@@ -254,13 +254,17 @@ function KRStockSummary() {
     }
   };
 
-  const totalTradingValue = tradingValues.reduce(
-    (acc, item) => ({
-      institutions: acc.institutions + Number(item.institutions || 0),
-      other_corp: acc.other_corp + Number(item.other_corp || 0),
-      individual: acc.individual + Number(item.individual || 0),
-      foreigners: acc.foreigners + Number(item.foreigners || 0),
-    }),
+  const totalTradingValue = dailyCharts.reduce(
+    (acc, chart) => {
+      const tv = tradingValues.find((t) => t.date === chart.date);
+      if (!tv) return acc;
+      return {
+        institutions: acc.institutions + Number(tv.institutions || 0),
+        other_corp: acc.other_corp + Number(tv.other_corp || 0),
+        individual: acc.individual + Number(tv.individual || 0),
+        foreigners: acc.foreigners + Number(tv.foreigners || 0),
+      };
+    },
     { institutions: 0, other_corp: 0, individual: 0, foreigners: 0 }
   );
 
@@ -410,7 +414,7 @@ function KRStockSummary() {
                 {marginTradingMessage}
               </div>
             )}
-            {tradingValues.length === 0 ? (
+            {dailyCharts.length === 0 ? (
               <p className="text-wealth-muted">데이터가 없습니다.</p>
             ) : (
               <div className="overflow-x-auto">
@@ -446,59 +450,59 @@ function KRStockSummary() {
                     </tr>
                   </thead>
                   <tbody>
-                    {tradingValues.map((item) => {
-                      const chartByDate = dailyCharts.find((c) => c.date === item.date);
+                    {dailyCharts.map((chart) => {
+                      const tradingByDate = tradingValues.find((t) => t.date === chart.date);
                       return (
-                      <tr key={`${item.stock_id}-${item.date}`} className="border-b border-gray-800/50">
-                        <td className="py-2 px-3 text-white whitespace-nowrap">{item.date}</td>
+                      <tr key={`${chart.stock_id}-${chart.date}`} className="border-b border-gray-800/50">
+                        <td className="py-2 px-3 text-white whitespace-nowrap">{chart.date}</td>
                         <td className="py-2 px-3 text-right text-white whitespace-nowrap">
-                          {chartByDate?.close != null ? Number(chartByDate.close).toLocaleString() : '-'}
+                          {chart.close != null ? Number(chart.close).toLocaleString() : '-'}
                         </td>
                         <td className={`py-2 px-3 text-right whitespace-nowrap ${
-                          chartByDate?.fluctuation_rate == null ? 'text-wealth-muted' : getVolumeColor(Number(chartByDate.fluctuation_rate))
+                          chart.fluctuation_rate == null ? 'text-wealth-muted' : getVolumeColor(Number(chart.fluctuation_rate))
                         }`}>
-                          {chartByDate?.fluctuation_rate != null
-                            ? `${Number(chartByDate.fluctuation_rate) >= 0 ? '+' : ''}${Number(chartByDate.fluctuation_rate).toFixed(2)}%`
+                          {chart.fluctuation_rate != null
+                            ? `${Number(chart.fluctuation_rate) >= 0 ? '+' : ''}${Number(chart.fluctuation_rate).toFixed(2)}%`
                             : '-'}
                         </td>
                         <td className={`py-2 px-3 text-right whitespace-nowrap ${
-                          chartByDate?.volume == null ? 'text-wealth-muted' : 'text-white'
+                          chart.volume == null ? 'text-wealth-muted' : 'text-white'
                         }`}>
-                          {chartByDate?.volume != null ? Number(chartByDate.volume).toLocaleString() : '-'}
+                          {chart.volume != null ? Number(chart.volume).toLocaleString() : '-'}
                         </td>
                         <td className={`py-2 px-3 text-right whitespace-nowrap ${
                           (() => {
-                            if (chartByDate?.low == null || chartByDate?.high == null || chartByDate?.volume == null) return 'text-white';
-                            const low = Number(chartByDate.low);
-                            const high = Number(chartByDate.high);
-                            const vol = Number(chartByDate.volume);
+                            if (chart.low == null || chart.high == null || chart.volume == null) return 'text-white';
+                            const low = Number(chart.low);
+                            const high = Number(chart.high);
+                            const vol = Number(chart.volume);
                             const amountBillion = ((low + high) / 2) * vol / 100000000;
                             if (amountBillion >= 500) return 'text-orange-400 font-bold';
                             if (amountBillion >= 150) return 'text-pink-400 font-bold';
                             return 'text-white';
                           })()
                         }`}>
-                          {chartByDate?.low != null && chartByDate?.high != null && chartByDate?.volume != null
+                          {chart.low != null && chart.high != null && chart.volume != null
                             ? (() => {
-                                const low = Number(chartByDate.low);
-                                const high = Number(chartByDate.high);
-                                const vol = Number(chartByDate.volume);
+                                const low = Number(chart.low);
+                                const high = Number(chart.high);
+                                const vol = Number(chart.volume);
                                 const amount = ((low + high) / 2) * vol;
                                 return `${(amount / 100000000).toFixed(2)}억`;
                               })()
                             : '-'}
                         </td>
-                        <td className={`py-2 px-3 text-right whitespace-nowrap ${getTradingValueColor(item.institutions)}`}>
-                          {formatTradingValueBillion(item.institutions)}
+                        <td className={`py-2 px-3 text-right whitespace-nowrap ${getTradingValueColor(tradingByDate?.institutions)}`}>
+                          {formatTradingValueBillion(tradingByDate?.institutions)}
                         </td>
-                        <td className={`py-2 px-3 text-right whitespace-nowrap ${getTradingValueColor(item.other_corp)}`}>
-                          {formatTradingValueBillion(item.other_corp)}
+                        <td className={`py-2 px-3 text-right whitespace-nowrap ${getTradingValueColor(tradingByDate?.other_corp)}`}>
+                          {formatTradingValueBillion(tradingByDate?.other_corp)}
                         </td>
-                        <td className={`py-2 px-3 text-right whitespace-nowrap ${getTradingValueColor(item.individual)}`}>
-                          {formatTradingValueBillion(item.individual)}
+                        <td className={`py-2 px-3 text-right whitespace-nowrap ${getTradingValueColor(tradingByDate?.individual)}`}>
+                          {formatTradingValueBillion(tradingByDate?.individual)}
                         </td>
-                        <td className={`py-2 px-3 text-right whitespace-nowrap ${getTradingValueColor(item.foreigners)}`}>
-                          {formatTradingValueBillion(item.foreigners)}
+                        <td className={`py-2 px-3 text-right whitespace-nowrap ${getTradingValueColor(tradingByDate?.foreigners)}`}>
+                          {formatTradingValueBillion(tradingByDate?.foreigners)}
                         </td>
                       </tr>
                     );})}
