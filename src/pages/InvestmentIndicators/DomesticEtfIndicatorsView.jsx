@@ -475,7 +475,7 @@ export default function DomesticEtfIndicatorsView() {
 
   return (
     <div className="max-w-[95%] mx-auto px-6 py-8">
-      <h2 className="text-xl font-semibold text-white mb-4">국내 ETF 지표</h2>
+      <h2 className="text-xl font-semibold text-white mb-4">국내 상장 ETF 지표</h2>
 
       {error && (
         <div className="mb-4 p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-400">
@@ -917,6 +917,14 @@ function EtfMiniGrid({ rows, marketClassNameByCode }) {
   });
   const fetchGenRef = useRef(0);
 
+  const pdfItemsWithName = useMemo(
+    () =>
+      pdfState.items.filter(
+        (p) => String(p.stock_name ?? '').trim() !== ''
+      ),
+    [pdfState.items]
+  );
+
   const togglePdfPanel = useCallback(
     async (etfId) => {
       if (openPdfEtfId === etfId) {
@@ -1076,12 +1084,12 @@ function EtfMiniGrid({ rows, marketClassNameByCode }) {
                       {pdfState.status === 'error' && (
                         <p className="text-sm text-red-400/90 px-3 py-4">{pdfState.error}</p>
                       )}
-                      {pdfState.status === 'done' && pdfState.items.length === 0 && (
+                      {pdfState.status === 'done' && pdfItemsWithName.length === 0 && (
                         <p className="text-sm text-wealth-muted px-3 py-4">
                           저장된 편입 구성이 없습니다.
                         </p>
                       )}
-                      {pdfState.status === 'done' && pdfState.items.length > 0 && (
+                      {pdfState.status === 'done' && pdfItemsWithName.length > 0 && (
                         <div className="w-fit max-w-full overflow-x-auto">
                           <table className={pdfPortfolioTableClass}>
                             <thead>
@@ -1111,15 +1119,12 @@ function EtfMiniGrid({ rows, marketClassNameByCode }) {
                                   RSI(18)
                                 </th>
                                 <th className="py-2 px-3 font-medium text-right text-wealth-muted">
-                                  수량
-                                </th>
-                                <th className="py-2 px-3 font-medium text-right text-wealth-muted">
                                   비중
                                 </th>
                               </tr>
                             </thead>
                             <tbody>
-                              {pdfState.items.map((p) => (
+                              {pdfItemsWithName.map((p) => (
                                 <tr
                                   key={p.id}
                                   className="border-b border-gray-700/30 text-white"
@@ -1129,11 +1134,9 @@ function EtfMiniGrid({ rows, marketClassNameByCode }) {
                                   </td>
                                   <td
                                     className="py-1.5 px-3 text-wealth-muted min-w-[12rem] truncate"
-                                    title={p.stock_name || ''}
+                                    title={p.stock_name}
                                   >
-                                    {p.stock_name != null && p.stock_name !== ''
-                                      ? p.stock_name
-                                      : '-'}
+                                    {p.stock_name}
                                   </td>
                                   <td
                                     className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap"
@@ -1152,9 +1155,6 @@ function EtfMiniGrid({ rows, marketClassNameByCode }) {
                                     title="RSI(18) (kr_stocks)"
                                   >
                                     {formatTechDecimal(p.stock_rsi18, 2)}
-                                  </td>
-                                  <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted">
-                                    {formatIntKO(p.contract_cnt)}
                                   </td>
                                   <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted">
                                     {formatTechDecimal(p.proportion, 2)}

@@ -520,7 +520,7 @@ function EarlyRetirementSimulation() {
               조기 은퇴 시뮬레이션
             </h1>
             <p className="text-wealth-muted text-sm">
-              투자 없이 살면 언제까지 버틸 수 있을까요? 다양한 시나리오를 비교해보세요.
+              당신의 수입과 지출 차이가 당신의 자유 시간입니다. 연봉이 올랐는데 지출액도 같이 오른다면 당신은 누군가의 노예로 계속 사는 것입니다. 하루빨리 FIRE를 위한 계획을 세워보세요.
             </p>
           </div>
 
@@ -531,11 +531,11 @@ function EarlyRetirementSimulation() {
           
           <div className="grid md:grid-cols-2 gap-6">
             <CurrencyInput
-              label="현재자산"
+              label="투자가능자산"
               name="investable_assets"
               value={investableAssets}
               onChange={handleInvestableAssetsChange}
-              placeholder="현재자산을 입력하세요"
+              placeholder="투자가능자산을 입력하세요"
               suffix="원"
               showHelperText={false}
               required={true}
