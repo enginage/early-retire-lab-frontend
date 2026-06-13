@@ -31,6 +31,9 @@ export async function fetchCommonCodeGroupsCached() {
       (m) =>
         String(m.code ?? '').toLowerCase() === 'kr_etf_market_classification'
     );
+    const tax = list.find(
+      (m) => String(m.code ?? '').toLowerCase() === 'etf_tax_type'
+    );
 
     const fetchDetail = async (master, label) => {
       if (!master) return [];
@@ -44,13 +47,16 @@ export async function fetchCommonCodeGroupsCached() {
       return Array.isArray(data) ? data : [];
     };
 
-    const [comparisonDetailsVal, marketClassDetailsVal] = await Promise.all([
+    const [comparisonDetailsVal, marketClassDetailsVal, etfTaxTypeDetailsVal] =
+      await Promise.all([
       fetchDetail(comp, 'comparison'),
       fetchDetail(mc, 'kr_etf_market_classification'),
+      fetchDetail(tax, 'etf_tax_type'),
     ]);
     const result = {
       comparisonDetails: comparisonDetailsVal,
       marketClassDetails: marketClassDetailsVal,
+      etfTaxTypeDetails: etfTaxTypeDetailsVal,
     };
     commonCodeGroupsCache = result;
     commonCodeGroupsPromise = null;

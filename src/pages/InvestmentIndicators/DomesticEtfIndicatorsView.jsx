@@ -109,6 +109,7 @@ export default function DomesticEtfIndicatorsView() {
   const [comparisonDetails, setComparisonDetails] = useState([]);
   const [comparisonLoadError, setComparisonLoadError] = useState(null);
   const [marketClassOptions, setMarketClassOptions] = useState([]);
+  const [etfTaxTypeOptions, setEtfTaxTypeOptions] = useState([]);
   /** '' = 전체, 그 외 = common_code_detail.detail_code (kr_etf_market_classification 마스터 하위) */
   const [selectedMarketClassCode, setSelectedMarketClassCode] = useState('');
   const [rsi18SelectedDetailCode, setRsi18SelectedDetailCode] = useState('');
@@ -189,7 +190,7 @@ export default function DomesticEtfIndicatorsView() {
     }
 
     if (commonCodeResult.status === 'fulfilled') {
-      const { comparisonDetails: rows, marketClassDetails: mcRows } =
+      const { comparisonDetails: rows, marketClassDetails: mcRows, etfTaxTypeDetails: taxRows } =
         commonCodeResult.value;
 
       setComparisonDetails(rows);
@@ -209,6 +210,7 @@ export default function DomesticEtfIndicatorsView() {
       setBbPercentBSelectedDetailCode(defaultCode);
 
       setMarketClassOptions(mcRows);
+      setEtfTaxTypeOptions(taxRows ?? []);
     } else {
       console.error(commonCodeResult.reason);
       setComparisonDetails([]);
@@ -217,6 +219,7 @@ export default function DomesticEtfIndicatorsView() {
       setBbWidthSelectedDetailCode('');
       setBbPercentBSelectedDetailCode('');
       setMarketClassOptions([]);
+      setEtfTaxTypeOptions([]);
       setComparisonLoadError(
         commonCodeResult.reason?.message ||
           '비교 연산자 / 시장분류 목록을 불러오지 못했습니다.'
@@ -403,6 +406,16 @@ export default function DomesticEtfIndicatorsView() {
     }
     return m;
   }, [marketClassOptions]);
+
+  const etfTaxTypeNameByCode = useMemo(() => {
+    const m = new Map();
+    for (const opt of etfTaxTypeOptions) {
+      const code = String(opt.detail_code ?? '').trim();
+      if (!code) continue;
+      m.set(code, String(opt.detail_code_name ?? '').trim() || code);
+    }
+    return m;
+  }, [etfTaxTypeOptions]);
 
   /** 비교 연산 셀렉트 4곳이 동일 목록 사용 — 한 번만 필터 */
   const comparisonSelectRows = useMemo(
@@ -894,6 +907,7 @@ export default function DomesticEtfIndicatorsView() {
                         <EtfMiniGrid
                           rows={list}
                           marketClassNameByCode={marketClassNameByCode}
+                          etfTaxTypeNameByCode={etfTaxTypeNameByCode}
                         />
                       </div>
                     )}
@@ -908,7 +922,7 @@ export default function DomesticEtfIndicatorsView() {
   );
 }
 
-function EtfMiniGrid({ rows, marketClassNameByCode }) {
+function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
   const [openPdfEtfId, setOpenPdfEtfId] = useState(null);
   const [pdfState, setPdfState] = useState({
     status: 'idle',
@@ -981,6 +995,14 @@ function EtfMiniGrid({ rows, marketClassNameByCode }) {
     }
     return c;
   };
+  const resolveTaxType = (code) => {
+    const c = String(code ?? '').trim();
+    if (!c) return '-';
+    if (etfTaxTypeNameByCode && etfTaxTypeNameByCode.has(c)) {
+      return etfTaxTypeNameByCode.get(c);
+    }
+    return c;
+  };
   /** 티커 열 폭 — 종목명 sticky left 와 맞춤 */
   const tickerColW = 'w-20 min-w-20 max-w-20';
   const stickyTickerTh =
@@ -991,18 +1013,19 @@ function EtfMiniGrid({ rows, marketClassNameByCode }) {
     `py-2 pl-3 pr-2 text-wealth-gold font-mono whitespace-nowrap sticky left-0 z-10 ${tickerColW} box-border bg-wealth-card group-hover:bg-gray-800/90 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.35)]`;
   const stickyNameTd =
     'py-2 px-3 text-white sticky left-20 z-10 min-w-[12rem] max-w-[13rem] w-[13rem] box-border bg-wealth-card group-hover:bg-gray-800/90 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.35)]';
-  const colCount = 13;
+  const colCount = 14;
   /** 편입 7열 테이블 — 본문 폭에 맞춤(상위는 w-fit 로 테이블에 맞춤) */
   const pdfPortfolioTableClass =
     'text-xs sm:text-sm border-collapse min-w-[760px] max-w-full';
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-700/50 bg-wealth-card/30">
-      <table className="w-full text-sm border-collapse min-w-[1260px]">
+      <table className="w-full text-sm border-collapse min-w-[1340px]">
         <thead>
           <tr className="border-b border-gray-700 text-left bg-wealth-card/40">
             <th className={stickyTickerTh}>티커</th>
             <th className={stickyNameTh}>종목명</th>
             <th className="py-2 px-3 font-medium whitespace-nowrap text-wealth-muted">시장분류</th>
+            <th className="py-2 px-3 font-medium whitespace-nowrap text-wealth-muted">과세유형</th>
             <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">총보수</th>
             <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">종가</th>
             <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">거래량</th>
@@ -1042,6 +1065,9 @@ function EtfMiniGrid({ rows, marketClassNameByCode }) {
                 </td>
                 <td className="py-2 px-3 text-wealth-muted whitespace-nowrap">
                   {resolveMarketClass(row.kr_etf_market_classification)}
+                </td>
+                <td className="py-2 px-3 text-wealth-muted whitespace-nowrap">
+                  {resolveTaxType(row.etf_tax_type)}
                 </td>
                 <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap">
                   {formatCompensation(row.compensation)}
