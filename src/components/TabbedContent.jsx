@@ -17,9 +17,6 @@ import EarlyRetirementSimulation from '../pages/ExperienceLab/EarlyRetirementSim
 import DomesticHighDividendSimulation from '../pages/ExperienceLab/DomesticHighDividendSimulation';
 import USAHighDividendSimulation from '../pages/ExperienceLab/USAHighDividendSimulation';
 import ExpenseManagement from '../pages/FinancialStatus/ExpenseManagement';
-import ISAAccountManagement from '../pages/FinancialStatus/ISAAccountManagement';
-import PensionFundAccountManagement from '../pages/FinancialStatus/PensionFundAccountManagement';
-import IRPAccountManagement from '../pages/FinancialStatus/IRPAccountManagement';
 import AssetIndicatorManagement from '../pages/FinancialStatus/AssetIndicatorManagement';
 import BasicSettings from '../pages/Settings/BasicSettings';
 import InvestmentIndicatorsSettings from '../pages/Settings/InvestmentIndicatorsSettings';
@@ -32,6 +29,7 @@ import USAETF from '../pages/Settings/USAETF';
 import DomesticEtfIndicatorsView from '../pages/InvestmentIndicators/DomesticEtfIndicatorsView';
 import KrMarketIndicatorsView from '../pages/InvestmentIndicators/KrMarketIndicatorsView';
 import UsaMarketIndicatorsView from '../pages/InvestmentIndicators/UsaMarketIndicatorsView';
+import ComprehensiveCalendar from '../pages/ComprehensiveCalendar';
 
 const TAB_COMPONENTS = {
   'opportunity-cost': OpportunityCost,
@@ -50,9 +48,6 @@ const TAB_COMPONENTS = {
   'domestic-high-dividend': DomesticHighDividendSimulation,
   'usa-high-dividend': USAHighDividendSimulation,
   'expense': ExpenseManagement,
-  'isa': ISAAccountManagement,
-  'pension-fund': PensionFundAccountManagement,
-  'irp': IRPAccountManagement,
   'irp-asset-indicators': AssetIndicatorManagement,
   'basic': BasicSettings,
   'investment-indicators-settings': InvestmentIndicatorsSettings,
@@ -65,6 +60,7 @@ const TAB_COMPONENTS = {
   'domestic-etf-indicators': DomesticEtfIndicatorsView,
   'kr-market-indicators': KrMarketIndicatorsView,
   'usa-market-indicators': UsaMarketIndicatorsView,
+  'comprehensive-calendar': ComprehensiveCalendar,
 };
 
 export default function TabbedContent() {

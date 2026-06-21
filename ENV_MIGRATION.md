@@ -47,40 +47,6 @@ const API_BASE_URL = getApiUrl(API_ENDPOINTS.ENDPOINT_NAME);
 7. `src/pages/Settings/USAETF.jsx`
    - `API_BASE_URL` → `getApiUrl(API_ENDPOINTS.USA_ETFS)`
 
-8. `src/pages/FinancialStatus/ISAAccountManagement.jsx`
-   - `API_BASE_URL` → `getApiUrl(API_ENDPOINTS.ISA_ACCOUNTS)`
-   - `DETAIL_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.ISA_ACCOUNT_DETAILS)`
-   - `MASTER_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.COMMON_CODE_MASTERS)`
-   - `COMMON_DETAIL_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.COMMON_CODE_DETAILS)`
-
-9. `src/pages/FinancialStatus/ISAAccountDetail.jsx`
-   - `DETAIL_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.ISA_ACCOUNT_DETAILS)`
-
-10. `src/pages/FinancialStatus/IRPAccountManagement.jsx`
-    - `API_BASE_URL` → `getApiUrl(API_ENDPOINTS.IRP_ACCOUNTS)`
-    - `DETAIL_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.IRP_ACCOUNT_DETAILS)`
-    - `MASTER_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.COMMON_CODE_MASTERS)`
-    - `COMMON_DETAIL_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.COMMON_CODE_DETAILS)`
-
-11. `src/pages/FinancialStatus/IRPAccountDetail.jsx`
-    - `DETAIL_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.IRP_ACCOUNT_DETAILS)`
-
-12. `src/pages/FinancialStatus/PensionFundAccountManagement.jsx`
-    - `API_BASE_URL` → `getApiUrl(API_ENDPOINTS.PENSION_FUND_ACCOUNTS)`
-    - `DETAIL_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.PENSION_FUND_ACCOUNT_DETAILS)`
-    - `MASTER_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.COMMON_CODE_MASTERS)`
-    - `COMMON_DETAIL_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.COMMON_CODE_DETAILS)`
-
-13. `src/pages/FinancialStatus/PensionFundAccountDetail.jsx`
-    - `DETAIL_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.PENSION_FUND_ACCOUNT_DETAILS)`
-
-14. `src/pages/TargetSetting/ISAOptimization.jsx`
-    - `API_BASE_URL` → `getApiUrl(API_ENDPOINTS.ISA_ACCOUNTS)`
-    - `SALE_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.ISA_ACCOUNT_SALES)`
-    - `DIVIDEND_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.ISA_ACCOUNT_DIVIDENDS)`
-    - `MASTER_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.COMMON_CODE_MASTERS)`
-    - `COMMON_DETAIL_API_BASE_URL` → `getApiUrl(API_ENDPOINTS.COMMON_CODE_DETAILS)`
-
 ## 환경 변수 설정
 
 ### 로컬 개발

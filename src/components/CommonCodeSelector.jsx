@@ -56,7 +56,6 @@ function CommonCodeSelector({ masterCode, value, onChange, placeholder = '선택
     const selectedValue = e.target.value;
     onChange({
       target: {
-        name: 'account_status_code',
         value: selectedValue === '' ? null : selectedValue,
       },
     });

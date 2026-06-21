@@ -5,7 +5,7 @@ const COMMON_CODE_DETAILS_URL = getStocksRestApiUrl(API_ENDPOINTS.COMMON_CODE_DE
 
 /**
  * comparison + kr_etf_market_classification 상세 (마스터 1회).
- * ETF 지표·국장 지표 등에서 공유 — 탭 전환·Strict Mode에도 네트워크 1회.
+ * ETF 기술 지표·국장 종목 기술 지표 등에서 공유 — 탭 전환·Strict Mode에도 네트워크 1회.
  */
 let commonCodeGroupsCache = null;
 let commonCodeGroupsPromise = null;

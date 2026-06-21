@@ -33,6 +33,7 @@ function App() {
             <Route path="/financial-status" element={<RedirectToWorkspace path="/financial-status" />} />
             <Route path="/target-setting" element={<Navigate to="/workspace" state={{ openTab: 'opportunity-cost' }} replace />} />
             <Route path="/simulation" element={<Navigate to="/workspace" state={{ openTab: 'opportunity-cost' }} replace />} />
+            <Route path="/comprehensive-calendar" element={<Navigate to="/workspace" state={{ openTab: 'comprehensive-calendar' }} replace />} />
             <Route path="/workspace" element={<Workspace />} />
             <Route path="/opportunity-cost" element={<Navigate to="/workspace" state={{ openTab: 'opportunity-cost' }} replace />} />
             <Route path="/kr-stock-summary" element={<Navigate to="/workspace" state={{ openTab: 'kr-stock-summary' }} replace />} />
@@ -51,9 +52,6 @@ function App() {
             <Route path="/domestic-high-dividend" element={<Navigate to="/workspace" state={{ openTab: 'domestic-high-dividend' }} replace />} />
             <Route path="/usa-high-dividend" element={<Navigate to="/workspace" state={{ openTab: 'usa-high-dividend' }} replace />} />
             <Route path="/expense" element={<Navigate to="/workspace" state={{ openTab: 'expense' }} replace />} />
-            <Route path="/isa" element={<Navigate to="/workspace" state={{ openTab: 'isa' }} replace />} />
-            <Route path="/pension-fund" element={<Navigate to="/workspace" state={{ openTab: 'pension-fund' }} replace />} />
-            <Route path="/irp" element={<Navigate to="/workspace" state={{ openTab: 'irp' }} replace />} />
             <Route path="/irp-asset-indicators" element={<Navigate to="/workspace" state={{ openTab: 'irp-asset-indicators' }} replace />} />
             <Route path="/basic" element={<Navigate to="/workspace" state={{ openTab: 'basic' }} replace />} />
             <Route path="/investment-indicators-settings" element={<Navigate to="/workspace" state={{ openTab: 'investment-indicators-settings' }} replace />} />

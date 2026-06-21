@@ -78,20 +78,8 @@ export const API_ENDPOINTS = {
   INCOME_TARGETS: '/api/v1/income-targets',
   
   // Accounts
-  ISA_ACCOUNTS: '/api/v1/isa-accounts',
-  ISA_ACCOUNT_DETAILS: '/api/v1/isa-account-details',
-  ISA_ACCOUNT_SALES: '/api/v1/isa-account-sales',
-  ISA_ACCOUNT_DIVIDENDS: '/api/v1/isa-account-dividends',
-  
-  IRP_ACCOUNTS: '/api/v1/irp-accounts',
-  IRP_ACCOUNT_DETAILS: '/api/v1/irp-account-details',
-
   ASSET_INDICATOR_ACCOUNTS: '/api/v1/asset-indicator-accounts',
   ASSET_INDICATOR_HOLDINGS: '/api/v1/asset-indicator-holdings',
-  
-  PENSION_FUND_ACCOUNTS: '/api/v1/pension-fund-accounts',
-  PENSION_FUND_ACCOUNT_DETAILS: '/api/v1/pension-fund-account-details',
-  
   // Early Retirement
   EARLY_RETIREMENT_INITIAL_SETTING: '/api/v1/early-retirement-initial-setting',
   
@@ -104,7 +92,7 @@ export const API_ENDPOINTS = {
   // Stock Trading Log
   STOCK_TRADING_LOGS: '/api/v1/stock-trading-logs',
   
-  // KR Stocks (국장 지표 등은 Stocks RestAPI + getStocksRestApiUrl, 환경설정 CRUD는 기본 API)
+  // KR Stocks (국장 종목 기술 지표 등은 Stocks RestAPI + getStocksRestApiUrl, 환경설정 CRUD는 기본 API)
   KR_STOCKS: '/api/v1/kr-stocks',
 
   // KR Stocks Trading Value (투자자별 거래대금)
@@ -133,6 +121,7 @@ export const API_ENDPOINTS = {
 
   // Market Overview & Rising Theme/Stock (국장 상한가 및 급등 분석)
   MARKET_OVERVIEW: '/api/v1/market-overview',
+  MARKET_OVERVIEW_PUBLIC: '/api/v1/market-overview-public',
   MARKET_CONDITION: '/api/v1/market-condition',
   RISING_THEME: '/api/v1/rising-theme',
   RISING_STOCK: '/api/v1/rising-stock',

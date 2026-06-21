@@ -488,7 +488,7 @@ export default function DomesticEtfIndicatorsView() {
 
   return (
     <div className="max-w-[95%] mx-auto px-6 py-8">
-      <h2 className="text-xl font-semibold text-white mb-4">국내 상장 ETF 지표</h2>
+      <h2 className="text-xl font-semibold text-white mb-4">국내 상장 ETF 기술 지표</h2>
 
       {error && (
         <div className="mb-4 p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-400">

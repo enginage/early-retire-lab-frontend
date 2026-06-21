@@ -20,13 +20,18 @@ const ALL_MENU_ITEMS = [
   },
   {
     key: 'investment-indicators',
-    label: '투자지표',
+    label: '스크리너',
     path: '/investment-indicators',
     submenus: [
-      { key: 'domestic-etf-indicators', label: '국내 상장 ETF 지표', path: '/domestic-etf-indicators' },
-      { key: 'kr-market-indicators', label: '국장 지표', path: '/kr-market-indicators' },
+      { key: 'domestic-etf-indicators', label: '국내 상장 ETF 기술 지표', path: '/domestic-etf-indicators' },
+      { key: 'kr-market-indicators', label: '국장 종목 기술 지표', path: '/kr-market-indicators' },
       // { key: 'usa-market-indicators', label: '미국시장지표', path: '/usa-market-indicators' },
     ],
+  },
+  {
+    key: 'comprehensive-calendar',
+    label: '종합캘린더',
+    path: '/comprehensive-calendar',
   },
   {
     key: 'financial-status',
@@ -34,9 +39,6 @@ const ALL_MENU_ITEMS = [
     path: '/financial-status',
     submenus: [
       { key: 'expense', label: '월평균지출', path: '/financial-status?menu=expense' },
-      { key: 'isa', label: 'ISA', path: '/financial-status?menu=isa' },
-      { key: 'pension-fund', label: '연금저축펀드', path: '/financial-status?menu=pension-fund' },
-      { key: 'irp', label: 'IRP', path: '/financial-status?menu=irp' },
       { key: 'irp-asset-indicators', label: '보유자산 기술지표', path: '/financial-status?menu=irp-asset-indicators' },
     ],
   },
@@ -52,7 +54,7 @@ const ALL_MENU_ITEMS = [
   },
   {
     key: 'investment-info',
-    label: '투자정보',
+    label: '투자정보관리',
     path: '/investment-info',
     submenus: [
       { key: 'theme-management', label: '테마별 종목 관리', path: '/theme-management' },
@@ -363,7 +365,6 @@ const TopNav = () => {
           
           {/* 데스크톱 네비게이션 */}
           <nav className="hidden md:flex items-center space-x-1">
-
             {/* 드롭다운 메뉴들 */}
             {menuItems.map((item) => {
               const activeTab = tabs.find((t) => t.id === activeTabId);

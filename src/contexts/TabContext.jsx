@@ -15,7 +15,7 @@ export const TAB_LABELS = {
   'opportunity-cost': '기회비용',
   'kr-stock-summary': '국내 주식 종합',
   'stock-trading-log': '국장매매일지',
-  // 투자정보
+  // 투자정보관리
   'theme-management': '테마별 종목 관리',
   'market-condition-theme': '시황별 테마관리',
   'follow-up-stocks': '후속주',
@@ -29,15 +29,14 @@ export const TAB_LABELS = {
   'early-retirement': '조기 은퇴 시뮬레이션',
   'domestic-high-dividend': '국내 고배당 ETF 시뮬레이션',
   'usa-high-dividend': '미국 고배당 ETF 시뮬레이션',
-  // 투자지표
-  'domestic-etf-indicators': '국내 상장 ETF 지표',
-  'kr-market-indicators': '국장 지표',
+  // 스크리너
+  'domestic-etf-indicators': '국내 상장 ETF 기술 지표',
+  'kr-market-indicators': '국장 종목 기술 지표',
   'usa-market-indicators': '미국시장지표',
+  // 종합캘린더
+  'comprehensive-calendar': '종합캘린더',
   // 재무상태
   'expense': '월평균지출',
-  'isa': 'ISA',
-  'pension-fund': '연금저축펀드',
-  'irp': 'IRP',
   'irp-asset-indicators': '보유자산 기술지표',
   // 환경설정
   'basic': '기본설정',

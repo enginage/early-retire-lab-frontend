@@ -134,7 +134,7 @@ export default function KrMarketIndicatorsView() {
         params.set('use_yn', 'true');
         const res = await fetch(`${LIST_URL}?${params.toString()}`);
         if (!res.ok) {
-          throw new Error(`국장 지표 조회 실패: ${res.status}`);
+          throw new Error(`국장 종목 기술 지표 조회 실패: ${res.status}`);
         }
         const data = await res.json();
         const batch = Array.isArray(data) ? data : [];
@@ -401,7 +401,7 @@ export default function KrMarketIndicatorsView() {
 
   return (
     <div className="max-w-[95%] mx-auto px-6 py-8">
-      <h2 className="text-xl font-semibold text-white mb-2">국장 지표</h2>
+      <h2 className="text-xl font-semibold text-white mb-2">국장 종목 기술 지표</h2>
 
       {error && (
         <div className="mb-4 p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-400">
