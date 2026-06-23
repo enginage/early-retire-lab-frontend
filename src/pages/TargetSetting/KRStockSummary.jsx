@@ -352,7 +352,7 @@ function KRStockSummary() {
                           if (v >= 1e12) {
                             const jo = Math.floor(v / 1e12);
                             const eok = Math.floor((v % 1e12) / 1e8);
-                            return `${jo}조 ${eok.toLocaleString()}억`;
+                            return `${jo.toLocaleString('ko-KR')}조 ${eok.toLocaleString('ko-KR')}억`;
                           }
                           return `${(v / 1e8).toFixed(2)}억`;
                         })()

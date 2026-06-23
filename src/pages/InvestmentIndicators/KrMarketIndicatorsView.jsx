@@ -31,6 +31,34 @@ function formatTechDecimal(v, fractionDigits = 4) {
   });
 }
 
+function formatFluctuationRate(v) {
+  if (v === null || v === undefined || v === '') return '-';
+  const n = Number(v);
+  if (Number.isNaN(n)) return '-';
+  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+}
+
+function fluctuationRateColor(v) {
+  if (v === null || v === undefined || v === '') return 'text-wealth-muted';
+  const n = Number(v);
+  if (Number.isNaN(n)) return 'text-wealth-muted';
+  if (n > 0) return 'text-red-400';
+  if (n < 0) return 'text-blue-400';
+  return 'text-wealth-muted';
+}
+
+function formatMarketCap(v) {
+  if (v === null || v === undefined || v === '') return '-';
+  const n = Number(v);
+  if (Number.isNaN(n)) return '-';
+  if (n >= 1e12) {
+    const jo = Math.floor(n / 1e12);
+    const eok = Math.floor((n % 1e12) / 1e8);
+    return `${jo.toLocaleString('ko-KR')}조 ${eok.toLocaleString('ko-KR')}억`;
+  }
+  return `${(n / 1e8).toFixed(2)}억`;
+}
+
 function sortableMetricValue(value) {
   if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
@@ -638,7 +666,23 @@ export default function KrMarketIndicatorsView() {
                   <th className="py-2 px-3 font-medium">종목명</th>
                   <th className="py-2 px-3 font-medium whitespace-nowrap">시장</th>
                   <th className="py-2 px-3 font-medium text-right whitespace-nowrap">종가</th>
+                  <SortableMetricTh
+                    label="등락률"
+                    field="fluctuation_rate"
+                    sortKey={techSortKey}
+                    sortDir={techSortDir}
+                    onAsc={handleTechSortAsc}
+                    onDesc={handleTechSortDesc}
+                  />
                   <th className="py-2 px-3 font-medium text-right whitespace-nowrap">거래량</th>
+                  <SortableMetricTh
+                    label="시가총액"
+                    field="market_cap"
+                    sortKey={techSortKey}
+                    sortDir={techSortDir}
+                    onAsc={handleTechSortAsc}
+                    onDesc={handleTechSortDesc}
+                  />
                   <SortableMetricTh
                     label="RSI(18)"
                     field="rsi18"
@@ -700,7 +744,7 @@ export default function KrMarketIndicatorsView() {
               <tbody>
                 {sortedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="py-8 text-center text-wealth-muted">
+                    <td colSpan={14} className="py-8 text-center text-wealth-muted">
                       표시할 종목이 없습니다.
                     </td>
                   </tr>
@@ -718,8 +762,16 @@ export default function KrMarketIndicatorsView() {
                       <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
                         {formatIntKO(row.latest_close)}
                       </td>
+                      <td
+                        className={`py-2 px-3 text-right whitespace-nowrap tabular-nums ${fluctuationRateColor(row.fluctuation_rate)}`}
+                      >
+                        {formatFluctuationRate(row.fluctuation_rate)}
+                      </td>
                       <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
                         {formatIntKO(row.latest_volume)}
+                      </td>
+                      <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
+                        {formatMarketCap(row.market_cap)}
                       </td>
                       <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
                         {formatTechDecimal(row.rsi18, 2)}
