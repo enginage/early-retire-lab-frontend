@@ -1,60 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { getApiUrl, API_ENDPOINTS } from '../../utils/api';
 import { ensureKRStockCache } from '../../components/KRStockSelector';
+import IndustryMapPathTree from '../../components/IndustryMapPathTree';
 
 const KR_STOCKS_API = getApiUrl(API_ENDPOINTS.KR_STOCKS);
 const KR_STOCKS_MARGIN_TRADING_API = getApiUrl(API_ENDPOINTS.KR_STOCKS_MARGIN_TRADING);
-const COMMON_CODE_DETAILS_API = getApiUrl(API_ENDPOINTS.COMMON_CODE_DETAILS);
-const THEMES_API = getApiUrl(API_ENDPOINTS.THEMES);
+// const THEMES_API = getApiUrl(API_ENDPOINTS.THEMES);
 const FOLLOW_UP_STOCKS_API = getApiUrl('/api/v1/follow-up-stocks');
 const KR_STOCKS_TRADING_VALUE_API = getApiUrl(API_ENDPOINTS.KR_STOCKS_TRADING_VALUE);
 const KR_STOCKS_DAILY_CHART_API = getApiUrl(API_ENDPOINTS.KR_STOCKS_DAILY_CHART);
 const RELATED_STOCKS_API = getApiUrl('/api/v1/related-stocks');
+const INDUSTRY_MAPS_API = getApiUrl(API_ENDPOINTS.INDUSTRY_MAPS);
 
 function KRStockSummary() {
   const [ticker, setTicker] = useState('');
   const [stock, setStock] = useState(null);
-  const [themes, setThemes] = useState([]);
+  // const [themes, setThemes] = useState([]);
   const [followUpStocks, setFollowUpStocks] = useState([]);
   const [sameLeaderStocks, setSameLeaderStocks] = useState([]);
   const [leaderStock, setLeaderStock] = useState(null);
-  const [industryMap, setIndustryMap] = useState({});
   const [tradingValues, setTradingValues] = useState([]);
   const [dailyCharts, setDailyCharts] = useState([]);
   const [relatedStocksLatestCharts, setRelatedStocksLatestCharts] = useState({});
   const [relatedStockGroups, setRelatedStockGroups] = useState([]);
+  const [industryMapPaths, setIndustryMapPaths] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [marginTradingLoading, setMarginTradingLoading] = useState(false);
   const [marginTradingMessage, setMarginTradingMessage] = useState(null);
-
-  useEffect(() => {
-    loadIndustryTypes();
-  }, []);
-
-  const loadIndustryTypes = async () => {
-    try {
-      const response = await fetch(`${COMMON_CODE_DETAILS_API}?master_id=10&skip=0&limit=10000`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const map = {};
-        data.forEach(item => {
-          if (item.detail_code && item.detail_code_name) {
-            map[item.detail_code] = item.detail_code_name;
-          }
-        });
-        setIndustryMap(map);
-      }
-    } catch (err) {
-      console.error('업종구분 로드 실패:', err);
-    }
-  };
 
   const handleSearch = async () => {
     if (!ticker.trim()) {
@@ -65,7 +38,7 @@ function KRStockSummary() {
     setLoading(true);
     setError(null);
     setStock(null);
-    setThemes([]);
+    // setThemes([]);
     setFollowUpStocks([]);
     setSameLeaderStocks([]);
     setLeaderStock(null);
@@ -73,6 +46,7 @@ function KRStockSummary() {
     setDailyCharts([]);
     setRelatedStocksLatestCharts({});
     setRelatedStockGroups([]);
+    setIndustryMapPaths([]);
     setMarginTradingMessage(null);
 
     try {
@@ -90,8 +64,7 @@ function KRStockSummary() {
 
       let selectedStock = foundStock;
 
-      // 캐시 데이터에 업종코드가 없을 수 있어 최신 데이터로 보강
-      if (!selectedStock.kr_industry_type) {
+      if (selectedStock.market_cap == null) {
         const detailResponse = await fetch(`${KR_STOCKS_API}/${selectedStock.id}`);
         if (detailResponse.ok) {
           const detailData = await detailResponse.json();
@@ -100,6 +73,18 @@ function KRStockSummary() {
       }
 
       setStock(selectedStock);
+
+      try {
+        const pathsResponse = await fetch(
+          `${INDUSTRY_MAPS_API}/stock/${selectedStock.id}/paths`
+        );
+        if (pathsResponse.ok) {
+          const pathsData = await pathsResponse.json();
+          setIndustryMapPaths(Array.isArray(pathsData) ? pathsData : []);
+        }
+      } catch (pathsErr) {
+        console.error('업종 지도 경로 로드 실패:', pathsErr);
+      }
 
       // 최신 일일 차트 데이터 20건 조회 (종가, 등락률, 거래량)
       try {
@@ -128,23 +113,23 @@ function KRStockSummary() {
       }
 
       // 해당 주식이 속한 테마 조회 (stock_id 중심 - 전체 테마 loop 없이)
-      const themesResponse = await fetch(`${THEMES_API}/stock/${foundStock.id}/summary`);
-      let stockThemes = [];
-      if (themesResponse.ok) {
-        const summaryItems = await themesResponse.json();
-        stockThemes = summaryItems.map((item) => ({
-          id: item.theme_id,
-          name: item.theme_name,
-          description: item.theme_description,
-          currentCategory: item.category_name ? { name: item.category_name } : null,
-          stocks: (item.stocks || []).map((s) => ({
-            stock: s,
-            category_id: item.category_id,
-            category: item.category_name ? { name: item.category_name } : null,
-          })),
-        }));
-        setThemes(stockThemes);
-      }
+      // const themesResponse = await fetch(`${THEMES_API}/stock/${foundStock.id}/summary`);
+      // let stockThemes = [];
+      // if (themesResponse.ok) {
+      //   const summaryItems = await themesResponse.json();
+      //   stockThemes = summaryItems.map((item) => ({
+      //     id: item.theme_id,
+      //     name: item.theme_name,
+      //     description: item.theme_description,
+      //     currentCategory: item.category_name ? { name: item.category_name } : null,
+      //     stocks: (item.stocks || []).map((s) => ({
+      //       stock: s,
+      //       category_id: item.category_id,
+      //       category: item.category_name ? { name: item.category_name } : null,
+      //     })),
+      //   }));
+      //   setThemes(stockThemes);
+      // }
 
       // 관련주 그룹 조회 (동일 group_id 종목)
       let relatedGroups = [];
@@ -159,15 +144,15 @@ function KRStockSummary() {
       }
 
       // 연관 종목들의 최신 일봉(종가, 거래량, 등락률) 일괄 조회 (테마 + 관련주)
-      const themeIds = stockThemes.flatMap((t) =>
-        (t.stocks || [])
-          .filter((item) => item.stock && item.stock.id !== foundStock.id)
-          .map((item) => item.stock.id)
-      );
+      // const themeIds = stockThemes.flatMap((t) =>
+      //   (t.stocks || [])
+      //     .filter((item) => item.stock && item.stock.id !== foundStock.id)
+      //     .map((item) => item.stock.id)
+      // );
       const relatedGroupIds = relatedGroups.flatMap((g) =>
         (g.stocks || []).filter((s) => s.id !== foundStock.id).map((s) => s.id)
       );
-      const relatedIds = [...new Set([...themeIds, ...relatedGroupIds])];
+      const relatedIds = [...new Set([...relatedGroupIds])];
       if (relatedIds.length > 0) {
         try {
           const idsParam = relatedIds.map((id) => `stock_ids=${id}`).join('&');
@@ -271,13 +256,23 @@ function KRStockSummary() {
   const getVolumeColor = (value) =>
     value > 0 ? 'text-red-400' : value < 0 ? 'text-blue-400' : 'text-wealth-muted';
 
+  const formatEokDisplay = (absBillion) => {
+    if (absBillion >= 10000) {
+      const jo = Math.floor(absBillion / 10000);
+      const eok = Math.floor(absBillion % 10000);
+      return `${jo.toLocaleString('ko-KR')}조 ${eok.toLocaleString('ko-KR')}억`;
+    }
+    return `${absBillion.toFixed(2)}억`;
+  };
+
   const formatTradingValueBillion = (value) => {
     const numValue = Number(value || 0);
     // -100만원 초과 ~ +100만원 미만이면 "-" 표시
     if (numValue > -1000000 && numValue < 1000000) return '-';
-    const absBillion = Math.abs(numValue / 100000000).toFixed(2);
-    if (numValue > 0) return `+${absBillion}억`;
-    if (numValue < 0) return `-${absBillion}억`;
+    const absBillion = Math.abs(numValue / 100000000);
+    const formatted = formatEokDisplay(absBillion);
+    if (numValue > 0) return `+${formatted}`;
+    if (numValue < 0) return `-${formatted}`;
     return '0.00억';
   };
 
@@ -327,23 +322,17 @@ function KRStockSummary() {
         <div className="space-y-6">
           {/* 기본 정보 카드 */}
           <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
-            <h2 className="text-2xl font-bold text-white mb-4">
-              {stock.name} ({stock.ticker})
-              {stock.nxt_yn && <span className="text-green-400 text-base ml-2">NXT거래</span>}
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-wealth-muted text-sm mb-1">시장구분</p>
-                <p className="text-white font-medium">{stock.market}</p>
-              </div>
-              <div className="flex flex-col md:flex-row md:items-end md:justify-between md:gap-4">
+            <div className="flex flex-wrap items-end justify-between gap-4 mb-4">
+              <h2 className="text-2xl font-bold text-white">
+                {stock.name} ({stock.ticker})
+                {stock.nxt_yn && <span className="text-green-400 text-base ml-2">NXT거래</span>}
+              </h2>
+              <div className="flex flex-wrap items-end gap-6">
                 <div>
-                  <p className="text-wealth-muted text-sm mb-1">업종명</p>
-                  <p className="text-white font-medium">
-                    {industryMap[stock.kr_industry_type] || stock.kr_industry_type || '-'}
-                  </p>
+                  <p className="text-wealth-muted text-sm mb-1">시장구분</p>
+                  <p className="text-white font-medium">{stock.market}</p>
                 </div>
-                <div className="md:text-right">
+                <div className="text-right">
                   <p className="text-wealth-muted text-sm mb-1">시가총액</p>
                   <p className="text-white font-medium">
                     {stock.market_cap != null
@@ -360,19 +349,22 @@ function KRStockSummary() {
                   </p>
                 </div>
               </div>
+            </div>
+            <IndustryMapPathTree paths={industryMapPaths} />
+            <div className="grid grid-cols-1 gap-4">
               {stock.business_summary && (
-                <div className="md:col-span-2">
+                <div>
                   <p className="text-wealth-muted text-sm mb-1">사업요약</p>
                   <p className="text-white whitespace-pre-wrap">{stock.business_summary}</p>
                 </div>
               )}
               {stock.opinion && (
-                <div className="md:col-span-2">
+                <div>
                   <p className="text-wealth-muted text-sm mb-1">의견</p>
                   <p className="text-white">{stock.opinion}</p>
                 </div>
               )}
-              {themes.length > 0 && (
+              {/* {themes.length > 0 && (
                 <div className="md:col-span-2">
                   <p className="text-wealth-muted text-sm mb-1">테마</p>
                   <div className="flex flex-wrap gap-2">
@@ -388,7 +380,7 @@ function KRStockSummary() {
                     ))}
                   </div>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
 
@@ -488,7 +480,7 @@ function KRStockSummary() {
                                 const high = Number(chart.high);
                                 const vol = Number(chart.volume);
                                 const amount = ((low + high) / 2) * vol;
-                                return `${(amount / 100000000).toFixed(2)}억`;
+                                return formatEokDisplay(amount / 100000000);
                               })()
                             : '-'}
                         </td>
@@ -511,6 +503,7 @@ function KRStockSummary() {
               </div>
             )}
           </div>
+
 
           {/* 관련주 정보 카드 */}
           {relatedStockGroups.length > 0 && (
@@ -566,7 +559,7 @@ function KRStockSummary() {
           )}
 
           {/* 테마 정보 카드 */}
-          {themes.length > 0 && (
+          {/* {themes.length > 0 && (
             <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
               <h2 className="text-2xl font-bold text-white mb-4">동일 테마</h2>
               <div className="space-y-4">
@@ -621,7 +614,7 @@ function KRStockSummary() {
                 ))}
               </div>
             </div>
-          )}
+          )} */}
 
           {/* 후속주 정보 카드 */}
           {leaderStock && leaderStock.id === stock.id && followUpStocks.length > 0 && (
@@ -676,13 +669,13 @@ function KRStockSummary() {
           )}
 
           {/* 정보가 없는 경우 */}
-          {themes.length === 0 && relatedStockGroups.length === 0 && !leaderStock && (
+          {/* {themes.length === 0 && relatedStockGroups.length === 0 && !leaderStock && (
             <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
               <p className="text-wealth-muted text-center py-8">
                 등록된 테마, 관련주, 후속주 정보가 없습니다.
               </p>
             </div>
-          )}
+          )} */}
         </div>
       )}
     </div>

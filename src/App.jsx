@@ -40,6 +40,7 @@ function App() {
             <Route path="/stock-trading-log" element={<Navigate to="/workspace" state={{ openTab: 'stock-trading-log' }} replace />} />
             <Route path="/investment-info" element={<Navigate to="/workspace" state={{ openTab: 'theme-management' }} replace />} />
             <Route path="/theme-management" element={<Navigate to="/workspace" state={{ openTab: 'theme-management' }} replace />} />
+            <Route path="/industry-map-management" element={<Navigate to="/workspace" state={{ openTab: 'industry-map-management' }} replace />} />
             <Route path="/market-condition-theme" element={<Navigate to="/workspace" state={{ openTab: 'market-condition-theme' }} replace />} />
             <Route path="/follow-up-stocks" element={<Navigate to="/workspace" state={{ openTab: 'follow-up-stocks' }} replace />} />
             <Route path="/related-stocks" element={<Navigate to="/workspace" state={{ openTab: 'related-stocks' }} replace />} />

@@ -5,6 +5,7 @@ import OpportunityCost from '../pages/TargetSetting/OpportunityCost';
 import KRStockSummary from '../pages/TargetSetting/KRStockSummary';
 import StockTradingLog from '../pages/StockTradingLog';
 import ThemeManagement from '../pages/InvestmentInfo/ThemeManagement';
+import IndustryMapManagement from '../pages/InvestmentInfo/IndustryMapManagement';
 import FollowUpStock from '../pages/InvestmentInfo/FollowUpStock';
 import RelatedStock from '../pages/InvestmentInfo/RelatedStock';
 import LimitUpSurgeAnalysis from '../pages/InvestmentInfo/LimitUpSurgeAnalysis';
@@ -36,6 +37,7 @@ const TAB_COMPONENTS = {
   'kr-stock-summary': KRStockSummary,
   'stock-trading-log': StockTradingLog,
   'theme-management': ThemeManagement,
+  'industry-map-management': IndustryMapManagement,
   'follow-up-stocks': FollowUpStock,
   'related-stocks': RelatedStock,
   'limitup-surge-analysis': LimitUpSurgeAnalysis,

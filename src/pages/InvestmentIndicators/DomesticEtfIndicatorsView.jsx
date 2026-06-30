@@ -8,19 +8,21 @@ import React, {
 } from 'react';
 import { getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
 import {
-  fetchCommonCodeGroupsCached,
-  RSI_OPS,
-  opFromComparisonDetail,
+  fetchDomesticEtfFilterCommonCodesCached,
+  COMPARISON_OPERATORS,
+  DEFAULT_COMPARISON_OP,
+  shouldApplyComparisonFilter,
   matchesMacdSignFilter,
   matchesRsiValue,
   applyClampedDecimalThresholdInput,
   applyRsiThresholdInput,
 } from './investmentIndicatorFilters';
+import {
+  fetchDomesticEtfsIndicatorsCached,
+  fetchAssetManagementInstCached,
+} from './investmentIndicatorsDataCache';
 
 const DOMESTIC_ETFS_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS);
-const ASSET_MANAGEMENT_INST_URL = getStocksRestApiUrl(
-  API_ENDPOINTS.ASSET_MANAGEMENT_INSTITUTIONS
-);
 
 function formatIntKO(v) {
   if (v === null || v === undefined || v === '') return '-';
@@ -106,20 +108,19 @@ export default function DomesticEtfIndicatorsView() {
   const [assetInstitutions, setAssetInstitutions] = useState([]);
   const [assetInstError, setAssetInstError] = useState(null);
   const [selectedManagerNames, setSelectedManagerNames] = useState([]);
-  const [comparisonDetails, setComparisonDetails] = useState([]);
-  const [comparisonLoadError, setComparisonLoadError] = useState(null);
+  const [etfFilterLoadError, setEtfFilterLoadError] = useState(null);
   const [marketClassOptions, setMarketClassOptions] = useState([]);
   const [etfTaxTypeOptions, setEtfTaxTypeOptions] = useState([]);
   /** '' = 전체, 그 외 = common_code_detail.detail_code (kr_etf_market_classification 마스터 하위) */
   const [selectedMarketClassCode, setSelectedMarketClassCode] = useState('');
-  const [rsi18SelectedDetailCode, setRsi18SelectedDetailCode] = useState('');
+  const [rsi18ComparisonOp, setRsi18ComparisonOp] = useState(DEFAULT_COMPARISON_OP);
   const [rsi18Threshold, setRsi18Threshold] = useState('');
-  const [rsi30SelectedDetailCode, setRsi30SelectedDetailCode] = useState('');
+  const [rsi30ComparisonOp, setRsi30ComparisonOp] = useState(DEFAULT_COMPARISON_OP);
   const [rsi30Threshold, setRsi30Threshold] = useState('');
-  const [bbWidthSelectedDetailCode, setBbWidthSelectedDetailCode] = useState('');
+  const [bbWidthComparisonOp, setBbWidthComparisonOp] = useState(DEFAULT_COMPARISON_OP);
   const [bbWidthThreshold, setBbWidthThreshold] = useState('');
-  const [bbPercentBSelectedDetailCode, setBbPercentBSelectedDetailCode] =
-    useState('');
+  const [bbPercentBComparisonOp, setBbPercentBComparisonOp] =
+    useState(DEFAULT_COMPARISON_OP);
   const [bbPercentBThreshold, setBbPercentBThreshold] = useState('');
   const [macdLineSignFilter, setMacdLineSignFilter] = useState('');
   const [macdSignalSignFilter, setMacdSignalSignFilter] = useState('');
@@ -138,35 +139,12 @@ export default function DomesticEtfIndicatorsView() {
     setLoading(true);
     setError(null);
     setAssetInstError(null);
-    setComparisonLoadError(null);
-
-    const fetchEtfs = async () => {
-      const PAGE = 1000;
-      const merged = [];
-      let skip = 0;
-      while (true) {
-        const res = await fetch(`${DOMESTIC_ETFS_URL}?skip=${skip}&limit=${PAGE}`);
-        if (!res.ok) throw new Error(`국내 ETF 조회 실패: ${res.status}`);
-        const data = await res.json();
-        const batch = Array.isArray(data) ? data : [];
-        merged.push(...batch);
-        if (batch.length < PAGE) break;
-        skip += PAGE;
-      }
-      return merged;
-    };
-
-    const fetchAssetInstitutions = async () => {
-      const res = await fetch(`${ASSET_MANAGEMENT_INST_URL}?skip=0&limit=10000`);
-      if (!res.ok) throw new Error(`자산운용사 목록 조회 실패: ${res.status}`);
-      const data = await res.json();
-      return Array.isArray(data) ? data : [];
-    };
+    setEtfFilterLoadError(null);
 
     const [etfsResult, assetsResult, commonCodeResult] = await Promise.allSettled([
-      fetchEtfs(),
-      fetchAssetInstitutions(),
-      fetchCommonCodeGroupsCached(),
+      fetchDomesticEtfsIndicatorsCached(),
+      fetchAssetManagementInstCached(),
+      fetchDomesticEtfFilterCommonCodesCached(),
     ]);
 
     if (etfsResult.status === 'fulfilled') {
@@ -190,39 +168,18 @@ export default function DomesticEtfIndicatorsView() {
     }
 
     if (commonCodeResult.status === 'fulfilled') {
-      const { comparisonDetails: rows, marketClassDetails: mcRows, etfTaxTypeDetails: taxRows } =
+      const { marketClassDetails: mcRows, etfTaxTypeDetails: taxRows } =
         commonCodeResult.value;
-
-      setComparisonDetails(rows);
-      const withCode = rows.filter(
-        (r) => String(r.detail_code ?? '').trim() !== ''
-      );
-      const defaultCode = (prev) => {
-        const p = String(prev ?? '').trim();
-        if (p && withCode.some((r) => String(r.detail_code).trim() === p)) {
-          return p;
-        }
-        return withCode[0] ? String(withCode[0].detail_code).trim() : '';
-      };
-      setRsi18SelectedDetailCode(defaultCode);
-      setRsi30SelectedDetailCode(defaultCode);
-      setBbWidthSelectedDetailCode(defaultCode);
-      setBbPercentBSelectedDetailCode(defaultCode);
 
       setMarketClassOptions(mcRows);
       setEtfTaxTypeOptions(taxRows ?? []);
     } else {
       console.error(commonCodeResult.reason);
-      setComparisonDetails([]);
-      setRsi18SelectedDetailCode('');
-      setRsi30SelectedDetailCode('');
-      setBbWidthSelectedDetailCode('');
-      setBbPercentBSelectedDetailCode('');
       setMarketClassOptions([]);
       setEtfTaxTypeOptions([]);
-      setComparisonLoadError(
+      setEtfFilterLoadError(
         commonCodeResult.reason?.message ||
-          '비교 연산자 / 시장분류 목록을 불러오지 못했습니다.'
+          '시장분류 / 과세유형 목록을 불러오지 못했습니다.'
       );
     }
 
@@ -289,77 +246,25 @@ export default function DomesticEtfIndicatorsView() {
         return am && sel.has(am);
       });
     }
-    const applyRsi18 =
-      rsi18ThresholdNum !== null &&
-      !Number.isNaN(rsi18ThresholdNum) &&
-      comparisonDetails.length > 0 &&
-      String(rsi18SelectedDetailCode ?? '').trim() !== '';
-    if (applyRsi18) {
-      const detail = comparisonDetails.find(
-        (d) =>
-          String(d.detail_code ?? '').trim() ===
-          String(rsi18SelectedDetailCode).trim()
+    if (shouldApplyComparisonFilter(rsi18ThresholdNum, rsi18ComparisonOp)) {
+      list = list.filter((e) =>
+        matchesRsiValue(e.rsi18, rsi18ComparisonOp, rsi18ThresholdNum)
       );
-      const op = detail ? opFromComparisonDetail(detail) : '';
-      if (op && RSI_OPS.includes(op)) {
-        list = list.filter((e) =>
-          matchesRsiValue(e.rsi18, op, rsi18ThresholdNum)
-        );
-      }
     }
-    const applyRsi30 =
-      rsi30ThresholdNum !== null &&
-      !Number.isNaN(rsi30ThresholdNum) &&
-      comparisonDetails.length > 0 &&
-      String(rsi30SelectedDetailCode ?? '').trim() !== '';
-    if (applyRsi30) {
-      const detail = comparisonDetails.find(
-        (d) =>
-          String(d.detail_code ?? '').trim() ===
-          String(rsi30SelectedDetailCode).trim()
+    if (shouldApplyComparisonFilter(rsi30ThresholdNum, rsi30ComparisonOp)) {
+      list = list.filter((e) =>
+        matchesRsiValue(e.rsi30, rsi30ComparisonOp, rsi30ThresholdNum)
       );
-      const op = detail ? opFromComparisonDetail(detail) : '';
-      if (op && RSI_OPS.includes(op)) {
-        list = list.filter((e) =>
-          matchesRsiValue(e.rsi30, op, rsi30ThresholdNum)
-        );
-      }
     }
-    const applyBbWidth =
-      bbWidthThresholdNum !== null &&
-      !Number.isNaN(bbWidthThresholdNum) &&
-      comparisonDetails.length > 0 &&
-      String(bbWidthSelectedDetailCode ?? '').trim() !== '';
-    if (applyBbWidth) {
-      const detail = comparisonDetails.find(
-        (d) =>
-          String(d.detail_code ?? '').trim() ===
-          String(bbWidthSelectedDetailCode).trim()
+    if (shouldApplyComparisonFilter(bbWidthThresholdNum, bbWidthComparisonOp)) {
+      list = list.filter((e) =>
+        matchesRsiValue(e.bb_width, bbWidthComparisonOp, bbWidthThresholdNum)
       );
-      const op = detail ? opFromComparisonDetail(detail) : '';
-      if (op && RSI_OPS.includes(op)) {
-        list = list.filter((e) =>
-          matchesRsiValue(e.bb_width, op, bbWidthThresholdNum)
-        );
-      }
     }
-    const applyBbPercentB =
-      bbPercentBThresholdNum !== null &&
-      !Number.isNaN(bbPercentBThresholdNum) &&
-      comparisonDetails.length > 0 &&
-      String(bbPercentBSelectedDetailCode ?? '').trim() !== '';
-    if (applyBbPercentB) {
-      const detail = comparisonDetails.find(
-        (d) =>
-          String(d.detail_code ?? '').trim() ===
-          String(bbPercentBSelectedDetailCode).trim()
+    if (shouldApplyComparisonFilter(bbPercentBThresholdNum, bbPercentBComparisonOp)) {
+      list = list.filter((e) =>
+        matchesRsiValue(e.bb_percent_b, bbPercentBComparisonOp, bbPercentBThresholdNum)
       );
-      const op = detail ? opFromComparisonDetail(detail) : '';
-      if (op && RSI_OPS.includes(op)) {
-        list = list.filter((e) =>
-          matchesRsiValue(e.bb_percent_b, op, bbPercentBThresholdNum)
-        );
-      }
     }
     if (macdLineSignFilter) {
       list = list.filter((e) =>
@@ -384,13 +289,12 @@ export default function DomesticEtfIndicatorsView() {
     selectedMarketClassCode,
     rsi18ThresholdNum,
     rsi30ThresholdNum,
-    comparisonDetails,
-    rsi18SelectedDetailCode,
-    rsi30SelectedDetailCode,
+    rsi18ComparisonOp,
+    rsi30ComparisonOp,
     bbWidthThresholdNum,
     bbPercentBThresholdNum,
-    bbWidthSelectedDetailCode,
-    bbPercentBSelectedDetailCode,
+    bbWidthComparisonOp,
+    bbPercentBComparisonOp,
     macdLineSignFilter,
     macdSignalSignFilter,
     macdHistSignFilter,
@@ -416,15 +320,6 @@ export default function DomesticEtfIndicatorsView() {
     }
     return m;
   }, [etfTaxTypeOptions]);
-
-  /** 비교 연산 셀렉트 4곳이 동일 목록 사용 — 한 번만 필터 */
-  const comparisonSelectRows = useMemo(
-    () =>
-      comparisonDetails.filter(
-        (d) => String(d.detail_code ?? '').trim() !== ''
-      ),
-    [comparisonDetails]
-  );
 
   const toggleManagerName = useCallback((name) => {
     const key = String(name ?? '').trim();
@@ -504,8 +399,8 @@ export default function DomesticEtfIndicatorsView() {
             {assetInstError && (
               <p className="text-xs text-amber-400/90">{assetInstError}</p>
             )}
-            {comparisonLoadError && (
-              <p className="text-xs text-amber-400/90">{comparisonLoadError}</p>
+            {etfFilterLoadError && (
+              <p className="text-xs text-amber-400/90">{etfFilterLoadError}</p>
             )}
             {marketClassOptions.length > 0 && (
               <div>
@@ -582,8 +477,6 @@ export default function DomesticEtfIndicatorsView() {
                 </div>
               )}
               <div className="flex flex-col sm:flex-row gap-3 shrink-0 w-full lg:w-auto flex-wrap">
-                {comparisonSelectRows.length > 0 && (
-                  <>
                     <div className="w-full sm:w-[220px] shrink-0 border border-gray-700 rounded-lg overflow-hidden flex flex-col">
                       <div className="px-3 py-2 bg-wealth-card/30 border-b border-gray-700 text-xs font-medium text-wealth-muted">
                         RSI(18)
@@ -594,18 +487,15 @@ export default function DomesticEtfIndicatorsView() {
                         </label>
                         <select
                           id="rsi18-comparison-op"
-                          value={rsi18SelectedDetailCode}
-                          onChange={(e) => setRsi18SelectedDetailCode(e.target.value)}
+                          value={rsi18ComparisonOp}
+                          onChange={(e) => setRsi18ComparisonOp(e.target.value)}
                           className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
                         >
-                          {comparisonSelectRows.map((d) => {
-                            const code = String(d.detail_code).trim();
-                            return (
-                              <option key={d.id} value={code}>
-                                {code}
-                              </option>
-                            );
-                          })}
+                          {COMPARISON_OPERATORS.map((op) => (
+                            <option key={op} value={op}>
+                              {op}
+                            </option>
+                          ))}
                         </select>
                         <label htmlFor="rsi18-threshold" className="sr-only">
                           RSI(18) 기준값
@@ -635,18 +525,15 @@ export default function DomesticEtfIndicatorsView() {
                         </label>
                         <select
                           id="rsi30-comparison-op"
-                          value={rsi30SelectedDetailCode}
-                          onChange={(e) => setRsi30SelectedDetailCode(e.target.value)}
+                          value={rsi30ComparisonOp}
+                          onChange={(e) => setRsi30ComparisonOp(e.target.value)}
                           className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
                         >
-                          {comparisonSelectRows.map((d) => {
-                            const code = String(d.detail_code).trim();
-                            return (
-                              <option key={`30-${d.id}`} value={code}>
-                                {code}
-                              </option>
-                            );
-                          })}
+                          {COMPARISON_OPERATORS.map((op) => (
+                            <option key={`30-${op}`} value={op}>
+                              {op}
+                            </option>
+                          ))}
                         </select>
                         <label htmlFor="rsi30-threshold" className="sr-only">
                           RSI(30) 기준값
@@ -676,20 +563,17 @@ export default function DomesticEtfIndicatorsView() {
                         </label>
                         <select
                           id="bb-width-comparison-op"
-                          value={bbWidthSelectedDetailCode}
+                          value={bbWidthComparisonOp}
                           onChange={(e) =>
-                            setBbWidthSelectedDetailCode(e.target.value)
+                            setBbWidthComparisonOp(e.target.value)
                           }
                           className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
                         >
-                          {comparisonSelectRows.map((d) => {
-                            const code = String(d.detail_code).trim();
-                            return (
-                              <option key={`bbw-${d.id}`} value={code}>
-                                {code}
-                              </option>
-                            );
-                          })}
+                          {COMPARISON_OPERATORS.map((op) => (
+                            <option key={`bbw-${op}`} value={op}>
+                              {op}
+                            </option>
+                          ))}
                         </select>
                         <label htmlFor="bb-width-threshold" className="sr-only">
                           BB폭 기준값
@@ -719,20 +603,17 @@ export default function DomesticEtfIndicatorsView() {
                         </label>
                         <select
                           id="bb-pctb-comparison-op"
-                          value={bbPercentBSelectedDetailCode}
+                          value={bbPercentBComparisonOp}
                           onChange={(e) =>
-                            setBbPercentBSelectedDetailCode(e.target.value)
+                            setBbPercentBComparisonOp(e.target.value)
                           }
                           className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
                         >
-                          {comparisonSelectRows.map((d) => {
-                            const code = String(d.detail_code).trim();
-                            return (
-                              <option key={`bbpct-${d.id}`} value={code}>
-                                {code}
-                              </option>
-                            );
-                          })}
+                          {COMPARISON_OPERATORS.map((op) => (
+                            <option key={`bbpct-${op}`} value={op}>
+                              {op}
+                            </option>
+                          ))}
                         </select>
                         <label htmlFor="bb-pctb-threshold" className="sr-only">
                           BB%B 기준값
@@ -752,8 +633,6 @@ export default function DomesticEtfIndicatorsView() {
                         </p>
                       </div>
                     </div>
-                  </>
-                )}
                 <div className="w-full sm:w-auto sm:min-w-[26rem] sm:max-w-[min(100%,32rem)] shrink-0 border border-gray-700 rounded-lg overflow-hidden flex flex-col">
                   <div className="px-2 py-1.5 bg-wealth-card/30 border-b border-gray-700 text-[11px] font-medium text-wealth-muted">
                     MACD 부호

@@ -92,7 +92,7 @@ export const API_ENDPOINTS = {
   // Stock Trading Log
   STOCK_TRADING_LOGS: '/api/v1/stock-trading-logs',
   
-  // KR Stocks (국장 종목 기술 지표 등은 Stocks RestAPI + getStocksRestApiUrl, 환경설정 CRUD는 기본 API)
+  // KR Stocks (국내 상장 기업 기술 지표 등은 Stocks RestAPI + getStocksRestApiUrl, 환경설정 CRUD는 기본 API)
   KR_STOCKS: '/api/v1/kr-stocks',
 
   // KR Stocks Trading Value (투자자별 거래대금)
@@ -115,6 +115,7 @@ export const API_ENDPOINTS = {
   
   // Themes
   THEMES: '/api/v1/themes',
+  INDUSTRY_MAPS: '/api/v1/industry-maps',
   
   // Follow-up Stocks
   FOLLOW_UP_STOCKS: '/api/v1/follow-up-stocks',

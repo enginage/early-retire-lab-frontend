@@ -218,6 +218,7 @@ function BatchJobs() {
           </h2>
           <p className="text-wealth-muted text-sm mb-4">
             KRX 로그인 후 일일 차트, 투자자별 거래대금, 국내 ETF 일일 차트 등을 수집합니다. 날짜(일일 차트·거래대금·ETF 일봉용)를 선택하세요.
+            수집 3단계가 모두 성공하면 국내주식·국내ETF 기술지표를 터미널에서 병렬 동기화합니다.
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <div>

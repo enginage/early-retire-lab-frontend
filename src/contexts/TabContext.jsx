@@ -17,6 +17,7 @@ export const TAB_LABELS = {
   'stock-trading-log': '국장매매일지',
   // 투자정보관리
   'theme-management': '테마별 종목 관리',
+  'industry-map-management': '업종 지도 관리',
   'market-condition-theme': '시황별 테마관리',
   'follow-up-stocks': '후속주',
   'related-stocks': '관련주',
@@ -31,7 +32,7 @@ export const TAB_LABELS = {
   'usa-high-dividend': '미국 고배당 ETF 시뮬레이션',
   // 스크리너
   'domestic-etf-indicators': '국내 상장 ETF 기술 지표',
-  'kr-market-indicators': '국장 종목 기술 지표',
+  'kr-market-indicators': '국내 상장 기업 기술 지표',
   'usa-market-indicators': '미국시장지표',
   // 종합캘린더
   'comprehensive-calendar': '종합캘린더',

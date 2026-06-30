@@ -1,18 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
 import {
-  fetchCommonCodeGroupsCached,
-  RSI_OPS,
-  opFromComparisonDetail,
+  COMPARISON_OPERATORS,
+  DEFAULT_COMPARISON_OP,
+  shouldApplyComparisonFilter,
   matchesMacdSignFilter,
   matchesRsiValue,
   applyClampedDecimalThresholdInput,
   applyRsiThresholdInput,
 } from './investmentIndicatorFilters';
-
-const LIST_URL = getStocksRestApiUrl(API_ENDPOINTS.KR_STOCKS);
-
-const PAGE_SIZE = 1000;
+import { fetchKrStocksIndicatorsCached } from './investmentIndicatorsDataCache';
 
 function formatIntKO(v) {
   if (v === null || v === undefined || v === '') return '-';
@@ -129,16 +125,14 @@ export default function KrMarketIndicatorsView() {
   const [search, setSearch] = useState('');
   const [market, setMarket] = useState('');
 
-  const [comparisonDetails, setComparisonDetails] = useState([]);
-  const [comparisonLoadError, setComparisonLoadError] = useState(null);
-  const [rsi18SelectedDetailCode, setRsi18SelectedDetailCode] = useState('');
+  const [rsi18ComparisonOp, setRsi18ComparisonOp] = useState(DEFAULT_COMPARISON_OP);
   const [rsi18Threshold, setRsi18Threshold] = useState('');
-  const [rsi30SelectedDetailCode, setRsi30SelectedDetailCode] = useState('');
+  const [rsi30ComparisonOp, setRsi30ComparisonOp] = useState(DEFAULT_COMPARISON_OP);
   const [rsi30Threshold, setRsi30Threshold] = useState('');
-  const [bbWidthSelectedDetailCode, setBbWidthSelectedDetailCode] = useState('');
+  const [bbWidthComparisonOp, setBbWidthComparisonOp] = useState(DEFAULT_COMPARISON_OP);
   const [bbWidthThreshold, setBbWidthThreshold] = useState('');
-  const [bbPercentBSelectedDetailCode, setBbPercentBSelectedDetailCode] =
-    useState('');
+  const [bbPercentBComparisonOp, setBbPercentBComparisonOp] =
+    useState(DEFAULT_COMPARISON_OP);
   const [bbPercentBThreshold, setBbPercentBThreshold] = useState('');
   const [macdLineSignFilter, setMacdLineSignFilter] = useState('');
   const [macdSignalSignFilter, setMacdSignalSignFilter] = useState('');
@@ -149,71 +143,15 @@ export default function KrMarketIndicatorsView() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setComparisonLoadError(null);
 
-    const fetchKrStocks = async () => {
-      const merged = [];
-      let skip = 0;
-      const maxSkip = 2_000_000;
-      while (skip <= maxSkip) {
-        const params = new URLSearchParams();
-        params.set('skip', String(skip));
-        params.set('limit', String(PAGE_SIZE));
-        params.set('use_yn', 'true');
-        const res = await fetch(`${LIST_URL}?${params.toString()}`);
-        if (!res.ok) {
-          throw new Error(`국장 종목 기술 지표 조회 실패: ${res.status}`);
-        }
-        const data = await res.json();
-        const batch = Array.isArray(data) ? data : [];
-        merged.push(...batch);
-        if (batch.length < PAGE_SIZE) break;
-        skip += PAGE_SIZE;
-      }
-      return merged;
-    };
+    const stocksResult = await Promise.allSettled([fetchKrStocksIndicatorsCached()]);
 
-    const [stocksResult, commonResult] = await Promise.allSettled([
-      fetchKrStocks(),
-      fetchCommonCodeGroupsCached(),
-    ]);
-
-    if (stocksResult.status === 'fulfilled') {
-      setRows(stocksResult.value);
+    if (stocksResult[0].status === 'fulfilled') {
+      setRows(stocksResult[0].value);
     } else {
-      console.error(stocksResult.reason);
+      console.error(stocksResult[0].reason);
       setRows([]);
-      setError(stocksResult.reason?.message || '데이터를 불러오지 못했습니다.');
-    }
-
-    if (commonResult.status === 'fulfilled') {
-      const { comparisonDetails: compRows } = commonResult.value;
-      setComparisonDetails(compRows);
-      const withCode = compRows.filter(
-        (r) => String(r.detail_code ?? '').trim() !== ''
-      );
-      const defaultCode = (prev) => {
-        const p = String(prev ?? '').trim();
-        if (p && withCode.some((r) => String(r.detail_code).trim() === p)) {
-          return p;
-        }
-        return withCode[0] ? String(withCode[0].detail_code).trim() : '';
-      };
-      setRsi18SelectedDetailCode(defaultCode);
-      setRsi30SelectedDetailCode(defaultCode);
-      setBbWidthSelectedDetailCode(defaultCode);
-      setBbPercentBSelectedDetailCode(defaultCode);
-    } else {
-      console.error(commonResult.reason);
-      setComparisonDetails([]);
-      setRsi18SelectedDetailCode('');
-      setRsi30SelectedDetailCode('');
-      setBbWidthSelectedDetailCode('');
-      setBbPercentBSelectedDetailCode('');
-      setComparisonLoadError(
-        commonResult.reason?.message ||
-          '비교 연산자 목록을 불러오지 못했습니다.'
-      );
+      setError(stocksResult[0].reason?.message || '데이터를 불러오지 못했습니다.');
     }
 
     setLoading(false);
@@ -251,14 +189,6 @@ export default function KrMarketIndicatorsView() {
     return Number.isFinite(n) ? n : NaN;
   }, [bbPercentBThreshold]);
 
-  const comparisonSelectRows = useMemo(
-    () =>
-      comparisonDetails.filter(
-        (d) => String(d.detail_code ?? '').trim() !== ''
-      ),
-    [comparisonDetails]
-  );
-
   const marketFiltered = useMemo(() => {
     const withVolume = rows.filter(hasNonZeroLatestVolume);
     const m = market.trim();
@@ -269,77 +199,25 @@ export default function KrMarketIndicatorsView() {
   const indicatorFiltered = useMemo(() => {
     let list = marketFiltered;
 
-    const applyRsi18 =
-      rsi18ThresholdNum !== null &&
-      !Number.isNaN(rsi18ThresholdNum) &&
-      comparisonDetails.length > 0 &&
-      String(rsi18SelectedDetailCode ?? '').trim() !== '';
-    if (applyRsi18) {
-      const detail = comparisonDetails.find(
-        (d) =>
-          String(d.detail_code ?? '').trim() ===
-          String(rsi18SelectedDetailCode).trim()
+    if (shouldApplyComparisonFilter(rsi18ThresholdNum, rsi18ComparisonOp)) {
+      list = list.filter((e) =>
+        matchesRsiValue(e.rsi18, rsi18ComparisonOp, rsi18ThresholdNum)
       );
-      const op = detail ? opFromComparisonDetail(detail) : '';
-      if (op && RSI_OPS.includes(op)) {
-        list = list.filter((e) =>
-          matchesRsiValue(e.rsi18, op, rsi18ThresholdNum)
-        );
-      }
     }
-    const applyRsi30 =
-      rsi30ThresholdNum !== null &&
-      !Number.isNaN(rsi30ThresholdNum) &&
-      comparisonDetails.length > 0 &&
-      String(rsi30SelectedDetailCode ?? '').trim() !== '';
-    if (applyRsi30) {
-      const detail = comparisonDetails.find(
-        (d) =>
-          String(d.detail_code ?? '').trim() ===
-          String(rsi30SelectedDetailCode).trim()
+    if (shouldApplyComparisonFilter(rsi30ThresholdNum, rsi30ComparisonOp)) {
+      list = list.filter((e) =>
+        matchesRsiValue(e.rsi30, rsi30ComparisonOp, rsi30ThresholdNum)
       );
-      const op = detail ? opFromComparisonDetail(detail) : '';
-      if (op && RSI_OPS.includes(op)) {
-        list = list.filter((e) =>
-          matchesRsiValue(e.rsi30, op, rsi30ThresholdNum)
-        );
-      }
     }
-    const applyBbWidth =
-      bbWidthThresholdNum !== null &&
-      !Number.isNaN(bbWidthThresholdNum) &&
-      comparisonDetails.length > 0 &&
-      String(bbWidthSelectedDetailCode ?? '').trim() !== '';
-    if (applyBbWidth) {
-      const detail = comparisonDetails.find(
-        (d) =>
-          String(d.detail_code ?? '').trim() ===
-          String(bbWidthSelectedDetailCode).trim()
+    if (shouldApplyComparisonFilter(bbWidthThresholdNum, bbWidthComparisonOp)) {
+      list = list.filter((e) =>
+        matchesRsiValue(e.bb_width, bbWidthComparisonOp, bbWidthThresholdNum)
       );
-      const op = detail ? opFromComparisonDetail(detail) : '';
-      if (op && RSI_OPS.includes(op)) {
-        list = list.filter((e) =>
-          matchesRsiValue(e.bb_width, op, bbWidthThresholdNum)
-        );
-      }
     }
-    const applyBbPercentB =
-      bbPercentBThresholdNum !== null &&
-      !Number.isNaN(bbPercentBThresholdNum) &&
-      comparisonDetails.length > 0 &&
-      String(bbPercentBSelectedDetailCode ?? '').trim() !== '';
-    if (applyBbPercentB) {
-      const detail = comparisonDetails.find(
-        (d) =>
-          String(d.detail_code ?? '').trim() ===
-          String(bbPercentBSelectedDetailCode).trim()
+    if (shouldApplyComparisonFilter(bbPercentBThresholdNum, bbPercentBComparisonOp)) {
+      list = list.filter((e) =>
+        matchesRsiValue(e.bb_percent_b, bbPercentBComparisonOp, bbPercentBThresholdNum)
       );
-      const op = detail ? opFromComparisonDetail(detail) : '';
-      if (op && RSI_OPS.includes(op)) {
-        list = list.filter((e) =>
-          matchesRsiValue(e.bb_percent_b, op, bbPercentBThresholdNum)
-        );
-      }
     }
     if (macdLineSignFilter) {
       list = list.filter((e) =>
@@ -363,11 +241,10 @@ export default function KrMarketIndicatorsView() {
     rsi30ThresholdNum,
     bbWidthThresholdNum,
     bbPercentBThresholdNum,
-    comparisonDetails,
-    rsi18SelectedDetailCode,
-    rsi30SelectedDetailCode,
-    bbWidthSelectedDetailCode,
-    bbPercentBSelectedDetailCode,
+    rsi18ComparisonOp,
+    rsi30ComparisonOp,
+    bbWidthComparisonOp,
+    bbPercentBComparisonOp,
     macdLineSignFilter,
     macdSignalSignFilter,
     macdHistSignFilter,
@@ -429,16 +306,11 @@ export default function KrMarketIndicatorsView() {
 
   return (
     <div className="max-w-[95%] mx-auto px-6 py-8">
-      <h2 className="text-xl font-semibold text-white mb-2">국장 종목 기술 지표</h2>
+      <h2 className="text-xl font-semibold text-white mb-2">국내 상장 기업 기술 지표</h2>
 
       {error && (
         <div className="mb-4 p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-400">
           {error}
-        </div>
-      )}
-      {comparisonLoadError && (
-        <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/40 rounded-lg text-amber-300 text-sm">
-          {comparisonLoadError}
         </div>
       )}
 
@@ -446,26 +318,22 @@ export default function KrMarketIndicatorsView() {
         <div className="text-center py-8 text-wealth-muted">로딩 중…</div>
       ) : (
         <>
-      {comparisonSelectRows.length > 0 && (
-        <div className="flex flex-col sm:flex-row gap-3 flex-wrap mb-4">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap mb-4">
           <div className="w-full sm:w-[220px] shrink-0 border border-gray-700 rounded-lg overflow-hidden flex flex-col">
             <div className="px-3 py-2 bg-wealth-card/30 border-b border-gray-700 text-xs font-medium text-wealth-muted">
               RSI(18)
             </div>
             <div className="p-3 flex flex-col gap-2">
               <select
-                value={rsi18SelectedDetailCode}
-                onChange={(e) => setRsi18SelectedDetailCode(e.target.value)}
+                value={rsi18ComparisonOp}
+                onChange={(e) => setRsi18ComparisonOp(e.target.value)}
                 className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
               >
-                {comparisonSelectRows.map((d) => {
-                  const code = String(d.detail_code).trim();
-                  return (
-                    <option key={d.id} value={code}>
-                      {code}
-                    </option>
-                  );
-                })}
+                {COMPARISON_OPERATORS.map((op) => (
+                  <option key={op} value={op}>
+                    {op}
+                  </option>
+                ))}
               </select>
               <input
                 type="text"
@@ -487,13 +355,13 @@ export default function KrMarketIndicatorsView() {
             </div>
             <div className="p-3 flex flex-col gap-2">
               <select
-                value={rsi30SelectedDetailCode}
-                onChange={(e) => setRsi30SelectedDetailCode(e.target.value)}
+                value={rsi30ComparisonOp}
+                onChange={(e) => setRsi30ComparisonOp(e.target.value)}
                 className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
               >
-                {comparisonSelectRows.map((d) => (
-                  <option key={`30-${d.id}`} value={String(d.detail_code).trim()}>
-                    {String(d.detail_code).trim()}
+                {COMPARISON_OPERATORS.map((op) => (
+                  <option key={`30-${op}`} value={op}>
+                    {op}
                   </option>
                 ))}
               </select>
@@ -517,13 +385,13 @@ export default function KrMarketIndicatorsView() {
             </div>
             <div className="p-3 flex flex-col gap-2">
               <select
-                value={bbWidthSelectedDetailCode}
-                onChange={(e) => setBbWidthSelectedDetailCode(e.target.value)}
+                value={bbWidthComparisonOp}
+                onChange={(e) => setBbWidthComparisonOp(e.target.value)}
                 className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
               >
-                {comparisonSelectRows.map((d) => (
-                  <option key={`bbw-${d.id}`} value={String(d.detail_code).trim()}>
-                    {String(d.detail_code).trim()}
+                {COMPARISON_OPERATORS.map((op) => (
+                  <option key={`bbw-${op}`} value={op}>
+                    {op}
                   </option>
                 ))}
               </select>
@@ -547,13 +415,13 @@ export default function KrMarketIndicatorsView() {
             </div>
             <div className="p-3 flex flex-col gap-2">
               <select
-                value={bbPercentBSelectedDetailCode}
-                onChange={(e) => setBbPercentBSelectedDetailCode(e.target.value)}
+                value={bbPercentBComparisonOp}
+                onChange={(e) => setBbPercentBComparisonOp(e.target.value)}
                 className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
               >
-                {comparisonSelectRows.map((d) => (
-                  <option key={`bbp-${d.id}`} value={String(d.detail_code).trim()}>
-                    {String(d.detail_code).trim()}
+                {COMPARISON_OPERATORS.map((op) => (
+                  <option key={`bbp-${op}`} value={op}>
+                    {op}
                   </option>
                 ))}
               </select>
@@ -618,7 +486,6 @@ export default function KrMarketIndicatorsView() {
             </p>
           </div>
         </div>
-      )}
 
       <div className="flex flex-wrap gap-3 mb-4 items-end">
         <div className="flex-1 min-w-[200px]">

@@ -24,7 +24,7 @@ const ALL_MENU_ITEMS = [
     path: '/investment-indicators',
     submenus: [
       { key: 'domestic-etf-indicators', label: '국내 상장 ETF 기술 지표', path: '/domestic-etf-indicators' },
-      { key: 'kr-market-indicators', label: '국장 종목 기술 지표', path: '/kr-market-indicators' },
+      { key: 'kr-market-indicators', label: '국내 상장 기업 기술 지표', path: '/kr-market-indicators' },
       // { key: 'usa-market-indicators', label: '미국시장지표', path: '/usa-market-indicators' },
     ],
   },
@@ -58,6 +58,7 @@ const ALL_MENU_ITEMS = [
     path: '/investment-info',
     submenus: [
       { key: 'theme-management', label: '테마별 종목 관리', path: '/theme-management' },
+      { key: 'industry-map-management', label: '업종 지도 관리', path: '/industry-map-management' },
       { key: 'market-condition-theme', label: '시황별 테마관리', path: '/market-condition-theme' },
       { key: 'follow-up-stocks', label: '후속주', path: '/follow-up-stocks' },
       { key: 'related-stocks', label: '관련주', path: '/related-stocks' },
