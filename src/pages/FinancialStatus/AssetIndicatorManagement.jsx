@@ -1,13 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+  Fragment,
+} from 'react';
 import DataGrid from '../../components/DataGrid';
 import CommonCodeSelector from '../../components/CommonCodeSelector';
 import FinancialInstitutionSelector from '../../components/FinancialInstitutionSelector';
 import KRStockSelector from '../../components/KRStockSelector';
 import DomesticETFSelector from '../../components/DomesticETFSelector';
-import { getApiUrl, API_ENDPOINTS } from '../../utils/api';
+import { getApiUrl, getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
 
 const ACCOUNTS_API = getApiUrl(API_ENDPOINTS.ASSET_INDICATOR_ACCOUNTS);
 const HOLDINGS_API = getApiUrl(API_ENDPOINTS.ASSET_INDICATOR_HOLDINGS);
+const DOMESTIC_ETFS_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS);
+
+const HOLDINGS_COL_COUNT = 12;
 
 function fmtNum(v) {
   if (v === null || v === undefined || v === '') return '-';
@@ -32,6 +42,78 @@ function assetKindLabel(kind) {
   return kind || '-';
 }
 
+function sortableMetricValue(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function compareMetricRows(a, b, key, dir) {
+  const va = sortableMetricValue(a[key]);
+  const vb = sortableMetricValue(b[key]);
+  if (va === null && vb === null) return 0;
+  if (va === null) return 1;
+  if (vb === null) return -1;
+  const cmp = va - vb;
+  if (cmp !== 0) return dir === 'asc' ? cmp : -cmp;
+  return String(a.ticker || '').localeCompare(String(b.ticker || ''));
+}
+
+function SortableMetricTh({ label, field, sortKey, sortDir, onAsc, onDesc }) {
+  const ascOn = sortKey === field && sortDir === 'asc';
+  const descOn = sortKey === field && sortDir === 'desc';
+  return (
+    <th className="py-2 px-3 font-medium text-right whitespace-nowrap align-bottom text-wealth-muted">
+      <div className="inline-flex items-center gap-1.5 justify-end w-full">
+        <span>{label}</span>
+        <div
+          className="flex flex-col rounded border border-gray-600/70 overflow-hidden shrink-0 bg-wealth-card/40"
+          role="group"
+          aria-label={`${label} 정렬`}
+        >
+          <button
+            type="button"
+            onClick={() => onAsc(field)}
+            className={`px-1 py-0.5 leading-none text-[10px] hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-wealth-gold/50 ${
+              ascOn ? 'text-wealth-gold bg-wealth-gold/15' : 'text-wealth-muted'
+            }`}
+            aria-label={`${label} 오름차순`}
+            title="오름차순"
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            onClick={() => onDesc(field)}
+            className={`px-1 py-0.5 leading-none text-[10px] border-t border-gray-600/70 hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-wealth-gold/50 ${
+              descOn ? 'text-wealth-gold bg-wealth-gold/15' : 'text-wealth-muted'
+            }`}
+            aria-label={`${label} 내림차순`}
+            title="내림차순"
+          >
+            ▼
+          </button>
+        </div>
+      </div>
+    </th>
+  );
+}
+
+function PdfPortfolioIcon({ open }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={`w-4 h-4 shrink-0 ${open ? 'text-wealth-gold' : 'text-wealth-muted'}`}
+      aria-hidden
+    >
+      <title>편입 구성(domestic_etfs_pdf)</title>
+      <path d="M4 6.75A.75.75 0 0 1 4.75 6h14.5a.75.75 0 0 1 0 1.5H4.75A.75.75 0 0 1 4 6.75ZM4 12a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H4.75A.75.75 0 0 1 4 12Zm0 5.25a.75.75 0 0 1 .75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1-.75-.75ZM17.25 16.5a.75.75 0 0 0 0 1.5h2.25a.75.75 0 0 0 0-1.5H17.25Z" />
+    </svg>
+  );
+}
+
 export default function AssetIndicatorManagement() {
   const [accounts, setAccounts] = useState([]);
   const [holdings, setHoldings] = useState([]);
@@ -50,6 +132,78 @@ export default function AssetIndicatorManagement() {
   const [selectingFiFor, setSelectingFiFor] = useState(null);
   const [showKrSelector, setShowKrSelector] = useState(false);
   const [showEtfSelector, setShowEtfSelector] = useState(false);
+  const [openPdfHoldingId, setOpenPdfHoldingId] = useState(null);
+  const [pdfState, setPdfState] = useState({
+    status: 'idle',
+    items: [],
+    error: null,
+  });
+  const pdfFetchGenRef = useRef(0);
+  const [techSortKey, setTechSortKey] = useState(null);
+  const [techSortDir, setTechSortDir] = useState('desc');
+
+  const sortedHoldings = useMemo(() => {
+    if (!techSortKey) return holdings;
+    const next = [...holdings];
+    next.sort((a, b) => compareMetricRows(a, b, techSortKey, techSortDir));
+    return next;
+  }, [holdings, techSortKey, techSortDir]);
+
+  const handleTechSortAsc = useCallback((field) => {
+    setTechSortKey(field);
+    setTechSortDir('asc');
+  }, []);
+
+  const handleTechSortDesc = useCallback((field) => {
+    setTechSortKey(field);
+    setTechSortDir('desc');
+  }, []);
+
+  const pdfItemsWithName = useMemo(
+    () =>
+      pdfState.items.filter((p) => String(p.stock_name ?? '').trim() !== ''),
+    [pdfState.items]
+  );
+
+  const togglePdfPanel = useCallback(async (holdingId, etfRefId) => {
+    if (openPdfHoldingId === holdingId) {
+      setOpenPdfHoldingId(null);
+      return;
+    }
+    const gen = ++pdfFetchGenRef.current;
+    setOpenPdfHoldingId(holdingId);
+    setPdfState({ status: 'loading', items: [], error: null });
+    try {
+      const res = await fetch(`${DOMESTIC_ETFS_URL}/${etfRefId}/pdf-portfolio`);
+      if (!res.ok) {
+        const raw = await res.text();
+        let msg = raw;
+        try {
+          const j = JSON.parse(raw);
+          msg = j.detail ?? raw;
+        } catch {
+          /* use raw */
+        }
+        throw new Error(
+          res.status === 404 ? 'ETF를 찾을 수 없습니다.' : msg || res.statusText
+        );
+      }
+      const data = await res.json();
+      if (gen !== pdfFetchGenRef.current) return;
+      setPdfState({
+        status: 'done',
+        items: Array.isArray(data) ? data : [],
+        error: null,
+      });
+    } catch (e) {
+      if (gen !== pdfFetchGenRef.current) return;
+      setPdfState({
+        status: 'error',
+        items: [],
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }, [openPdfHoldingId]);
 
   const loadAccounts = useCallback(async () => {
     try {
@@ -396,14 +550,70 @@ export default function AssetIndicatorManagement() {
                   <th className="py-2 px-3 text-wealth-muted">구분</th>
                   <th className="py-2 px-3 text-wealth-muted">티커</th>
                   <th className="py-2 px-3 text-wealth-muted">종목명</th>
-                  <th className="py-2 px-3 text-right text-wealth-muted">종가</th>
-                  <th className="py-2 px-3 text-right text-wealth-muted">RSI(18)</th>
-                  <th className="py-2 px-3 text-right text-wealth-muted">RSI(30)</th>
-                  <th className="py-2 px-3 text-right text-wealth-muted">MACD</th>
-                  <th className="py-2 px-3 text-right text-wealth-muted">Signal</th>
-                  <th className="py-2 px-3 text-right text-wealth-muted">MACD Oscillator</th>
-                  <th className="py-2 px-3 text-right text-wealth-muted">BB폭</th>
-                  <th className="py-2 px-3 text-right text-wealth-muted">BB%B</th>
+                  <SortableMetricTh
+                    label="종가"
+                    field="latest_close"
+                    sortKey={techSortKey}
+                    sortDir={techSortDir}
+                    onAsc={handleTechSortAsc}
+                    onDesc={handleTechSortDesc}
+                  />
+                  <SortableMetricTh
+                    label="RSI(18)"
+                    field="rsi18"
+                    sortKey={techSortKey}
+                    sortDir={techSortDir}
+                    onAsc={handleTechSortAsc}
+                    onDesc={handleTechSortDesc}
+                  />
+                  <SortableMetricTh
+                    label="RSI(30)"
+                    field="rsi30"
+                    sortKey={techSortKey}
+                    sortDir={techSortDir}
+                    onAsc={handleTechSortAsc}
+                    onDesc={handleTechSortDesc}
+                  />
+                  <SortableMetricTh
+                    label="MACD"
+                    field="macd_12_26"
+                    sortKey={techSortKey}
+                    sortDir={techSortDir}
+                    onAsc={handleTechSortAsc}
+                    onDesc={handleTechSortDesc}
+                  />
+                  <SortableMetricTh
+                    label="Signal"
+                    field="macd_signal_9"
+                    sortKey={techSortKey}
+                    sortDir={techSortDir}
+                    onAsc={handleTechSortAsc}
+                    onDesc={handleTechSortDesc}
+                  />
+                  <SortableMetricTh
+                    label="MACD Oscillator"
+                    field="macd_histogram"
+                    sortKey={techSortKey}
+                    sortDir={techSortDir}
+                    onAsc={handleTechSortAsc}
+                    onDesc={handleTechSortDesc}
+                  />
+                  <SortableMetricTh
+                    label="BB폭"
+                    field="bb_width"
+                    sortKey={techSortKey}
+                    sortDir={techSortDir}
+                    onAsc={handleTechSortAsc}
+                    onDesc={handleTechSortDesc}
+                  />
+                  <SortableMetricTh
+                    label="BB%B"
+                    field="bb_percent_b"
+                    sortKey={techSortKey}
+                    sortDir={techSortDir}
+                    onAsc={handleTechSortAsc}
+                    onDesc={handleTechSortDesc}
+                  />
                   <th className="py-2 px-3 text-center text-wealth-muted">삭제</th>
                 </tr>
               </thead>
@@ -421,47 +631,141 @@ export default function AssetIndicatorManagement() {
                     </td>
                   </tr>
                 ) : (
-                  holdings.map((h) => (
-                    <tr key={h.id} className="border-b border-gray-800/50">
-                      <td className="py-2 px-3 text-white">{assetKindLabel(h.asset_kind)}</td>
-                      <td className="py-2 px-3 font-mono text-wealth-gold">{h.ticker || '-'}</td>
-                      <td className="py-2 px-3 text-white max-w-[12rem] truncate" title={h.name}>
-                        {h.name || '-'}
-                      </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-white">
-                        {fmtNum(h.latest_close)}
-                      </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
-                        {fmtDec(h.rsi18, 2)}
-                      </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
-                        {fmtDec(h.rsi30, 2)}
-                      </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
-                        {fmtDec(h.macd_12_26, 4)}
-                      </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
-                        {fmtDec(h.macd_signal_9, 4)}
-                      </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
-                        {fmtDec(h.macd_histogram, 4)}
-                      </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
-                        {fmtDec(h.bb_width, 4)}
-                      </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
-                        {fmtDec(h.bb_percent_b, 4)}
-                      </td>
-                      <td className="py-2 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => deleteHolding(h)}
-                          className="text-red-400 hover:text-red-300 text-xs"
-                        >
-                          삭제
-                        </button>
-                      </td>
-                    </tr>
+                  sortedHoldings.map((h) => (
+                    <Fragment key={h.id}>
+                      <tr className="border-b border-gray-800/50">
+                        <td className="py-2 px-3 text-white">{assetKindLabel(h.asset_kind)}</td>
+                        <td className="py-2 px-3 font-mono text-wealth-gold">{h.ticker || '-'}</td>
+                        <td className="py-2 px-3 text-white max-w-[12rem]">
+                          <div className="flex items-center gap-1.5 min-w-0 w-full">
+                            <span className="truncate min-w-0 flex-1" title={h.name}>
+                              {h.name || '-'}
+                            </span>
+                            {h.asset_kind === 'domestic_etf' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  togglePdfPanel(h.id, h.ref_id);
+                                }}
+                                className="shrink-0 p-0.5 rounded hover:bg-wealth-gold/15 focus:outline-none focus:ring-1 focus:ring-wealth-gold/50"
+                                title="편입 구성 stock.domestic_etfs_pdf"
+                                aria-expanded={openPdfHoldingId === h.id}
+                                aria-label="편입 구성 보기/닫기"
+                              >
+                                <PdfPortfolioIcon open={openPdfHoldingId === h.id} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-white">
+                          {fmtNum(h.latest_close)}
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
+                          {fmtDec(h.rsi18, 2)}
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
+                          {fmtDec(h.rsi30, 2)}
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
+                          {fmtDec(h.macd_12_26, 4)}
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
+                          {fmtDec(h.macd_signal_9, 4)}
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
+                          {fmtDec(h.macd_histogram, 4)}
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
+                          {fmtDec(h.bb_width, 4)}
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
+                          {fmtDec(h.bb_percent_b, 4)}
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => deleteHolding(h)}
+                            className="text-red-400 hover:text-red-300 text-xs"
+                          >
+                            삭제
+                          </button>
+                        </td>
+                      </tr>
+                      {h.asset_kind === 'domestic_etf' && openPdfHoldingId === h.id && (
+                        <tr className="bg-wealth-card/25 border-b border-gray-800/50">
+                          <td colSpan={HOLDINGS_COL_COUNT} className="px-3 py-3 pl-6 align-top">
+                            <div className="w-fit max-w-full min-w-[760px] rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden">
+                              {pdfState.status === 'loading' && (
+                                <p className="text-sm text-wealth-muted px-3 py-4">불러오는 중…</p>
+                              )}
+                              {pdfState.status === 'error' && (
+                                <p className="text-sm text-red-400/90 px-3 py-4">{pdfState.error}</p>
+                              )}
+                              {pdfState.status === 'done' && pdfItemsWithName.length === 0 && (
+                                <p className="text-sm text-wealth-muted px-3 py-4">
+                                  저장된 편입 구성이 없습니다.
+                                </p>
+                              )}
+                              {pdfState.status === 'done' && pdfItemsWithName.length > 0 && (
+                                <div className="w-fit max-w-full overflow-x-auto">
+                                  <table className="text-xs sm:text-sm border-collapse min-w-[760px] max-w-full">
+                                    <thead>
+                                      <tr className="border-b border-gray-700/60 text-left bg-wealth-card/30">
+                                        <th className="py-2 px-3 font-medium text-wealth-muted">티커</th>
+                                        <th className="py-2 px-3 font-medium text-wealth-muted">종목명</th>
+                                        <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">
+                                          종가
+                                        </th>
+                                        <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">
+                                          거래량
+                                        </th>
+                                        <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">
+                                          RSI(18)
+                                        </th>
+                                        <th className="py-2 px-3 font-medium text-right text-wealth-muted">
+                                          비중
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {pdfItemsWithName.map((p) => (
+                                        <tr
+                                          key={p.id}
+                                          className="border-b border-gray-700/30 text-white"
+                                        >
+                                          <td className="py-1.5 px-3 font-mono text-wealth-gold">
+                                            {p.pdf_ticker}
+                                          </td>
+                                          <td
+                                            className="py-1.5 px-3 text-wealth-muted min-w-[12rem] truncate"
+                                            title={p.stock_name}
+                                          >
+                                            {p.stock_name}
+                                          </td>
+                                          <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap">
+                                            {fmtNum(p.stock_latest_close)}
+                                          </td>
+                                          <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap">
+                                            {fmtNum(p.stock_latest_volume)}
+                                          </td>
+                                          <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap">
+                                            {fmtDec(p.stock_rsi18, 2)}
+                                          </td>
+                                          <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted">
+                                            {fmtDec(p.proportion, 2)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   ))
                 )}
               </tbody>
