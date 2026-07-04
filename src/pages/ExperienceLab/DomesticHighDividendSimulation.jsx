@@ -6,12 +6,15 @@ const API_BASE_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS);
 const CHART_API_BASE_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS_DAILY_CHART);
 const DIVIDEND_API_BASE_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS_DIVIDEND);
 
-/** 시뮬레이션 기간 (API months_ago와 동일) */
+/** 시뮬레이션 기간 (일 단위) */
 const PERIOD_OPTIONS = [
-  { monthsAgo: 12, label: '1Y' },
-  { monthsAgo: 6, label: '6M' },
-  { monthsAgo: 3, label: '3M' },
+  { daysAgo: 365, label: '1Y' },
+  { daysAgo: 183, label: '6M' },
+  { daysAgo: 61, label: '3M' },
 ];
+
+/** 초기 fetch start_date — 1Y(365일) 구간 */
+const FETCH_DAYS_AGO = PERIOD_OPTIONS[0].daysAgo;
 
 /** React 18 Strict Mode(dev) 이중 마운트·동시 오픈 탭 대비: 초기 부트스트랩 네트워크 1회만 */
 let highDividendBootstrapCache = null;
@@ -41,6 +44,7 @@ async function fetchHighDividendBootstrap() {
       marketClassification: Array.isArray(data?.market_classification)
         ? data.market_classification
         : [],
+      referenceDate: data?.date ?? null,
     };
     highDividendBootstrapCache = payload;
     highDividendBootstrapPromise = null;
@@ -53,22 +57,37 @@ async function fetchHighDividendBootstrap() {
   return highDividendBootstrapPromise;
 }
 
-/** RestAPI domestic_etfs_dividend: payment_date >= 오늘 - months_ago * 30 일 (30일 근사) */
-function cutoffDateForMonthsAgo(monthsAgo) {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - monthsAgo * 30);
-  return d;
-}
-
 function startOfDayFromIso(iso) {
   const d = new Date(iso);
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-function filterDividendsByMonthsAgo(dividendsRaw, monthsAgo) {
-  const cutoff = cutoffDateForMonthsAgo(monthsAgo);
+function referenceBaseDate(referenceDateIso) {
+  if (referenceDateIso) {
+    return startOfDayFromIso(referenceDateIso);
+  }
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** 기준일(referenceDate)에서 daysAgo일 전 */
+function cutoffDateForDaysAgo(daysAgo, referenceDateIso) {
+  const d = new Date(referenceBaseDate(referenceDateIso));
+  d.setDate(d.getDate() - daysAgo);
+  return d;
+}
+
+/** bootstrap 기준일(referenceDate)에서 FETCH_DAYS_AGO일 전 — API start_date (YYYY-MM-DD) */
+function computeStartDateFromReference(referenceDateIso) {
+  const start = new Date(referenceBaseDate(referenceDateIso));
+  start.setDate(start.getDate() - FETCH_DAYS_AGO);
+  return start.toISOString().slice(0, 10);
+}
+
+function filterDividendsByDaysAgo(dividendsRaw, daysAgo, referenceDateIso) {
+  const cutoff = cutoffDateForDaysAgo(daysAgo, referenceDateIso);
   return dividendsRaw.filter(
     (row) => startOfDayFromIso(row.payment_date) >= cutoff
   );
@@ -79,6 +98,49 @@ function sortDividendsByRecordDateDesc(rows) {
     (a, b) =>
       new Date(b.record_date).getTime() - new Date(a.record_date).getTime()
   );
+}
+
+/** chart/period 와 동일: 기준일에서 daysAgo일 전 날짜에 가장 가까운 종가 */
+function getPurchaseCloseForDaysAgo(chartRows, daysAgo, referenceDateIso) {
+  if (!chartRows?.length) return null;
+
+  const target = cutoffDateForDaysAgo(daysAgo, referenceDateIso);
+  const windowStart = new Date(target);
+  windowStart.setDate(windowStart.getDate() - 30);
+  const windowEnd = new Date(target);
+  windowEnd.setDate(windowEnd.getDate() + 30);
+
+  const targetMs = target.getTime();
+  let closest = null;
+  let minDiff = Infinity;
+
+  for (const row of chartRows) {
+    const rowDate = startOfDayFromIso(row.date);
+    if (rowDate < windowStart || rowDate > windowEnd) continue;
+    const diff = Math.abs(rowDate.getTime() - targetMs);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = row;
+    }
+  }
+
+  if (closest?.close == null) return null;
+  const close = Number(closest.close);
+  return close > 0 ? close : null;
+}
+
+/** range 일봉 중 가장 오래된 거래일 종가 (chart/first 대체) */
+function getOldestCloseFromChartRows(chartRows) {
+  if (!chartRows?.length) return null;
+  let oldest = chartRows[0];
+  for (const row of chartRows) {
+    if (startOfDayFromIso(row.date) < startOfDayFromIso(oldest.date)) {
+      oldest = row;
+    }
+  }
+  if (oldest?.close == null) return null;
+  const close = Number(oldest.close);
+  return close > 0 ? close : null;
 }
 
 /** record_date 당일 종가, 없으면 직전 거래일 종가 */
@@ -119,11 +181,12 @@ function resolveDefaultMarketClassCode(marketClassification) {
 function DomesticHighDividendSimulation() {
   const [allEtfOptions, setAllEtfOptions] = useState([]);
   const [marketClassification, setMarketClassification] = useState([]);
+  const [referenceDate, setReferenceDate] = useState(null);
   /** kr_etf_market_classification detail_code (기본: 표시명 '국내') */
   const [selectedMarketClassCode, setSelectedMarketClassCode] = useState('');
   const [selectedEtf, setSelectedEtf] = useState(null);
-  /** 12=1Y, 6=6M, 3=3M (PERIOD_OPTIONS) */
-  const [selectedMonthsAgo, setSelectedMonthsAgo] = useState(12);
+  /** 365=1Y, 183=6M, 61=3M (PERIOD_OPTIONS) */
+  const [selectedDaysAgo, setSelectedDaysAgo] = useState(PERIOD_OPTIONS[0].daysAgo);
   const [purchaseAmount, setPurchaseAmount] = useState(20000000); // 기본 20,000,000원
   const [purchasePrice, setPurchasePrice] = useState(null); // 매입단가
   const [currentPrice, setCurrentPrice] = useState(null); // 현재가
@@ -131,7 +194,7 @@ function DomesticHighDividendSimulation() {
   const [evaluationAmount, setEvaluationAmount] = useState(0); // 평가금액
   const [unrealizedProfit, setUnrealizedProfit] = useState(0); // 미실현손익
   const [dividendData, setDividendData] = useState([]); // 배당입금내역
-  /** 동일 종목: 1년 배당 원본 + 기간별 매입단가(12·6·3개월) — 기간 변경 시 API 재호출 없음 */
+  /** 동일 종목: 1년 배당·일봉 원본 — 기간 변경 시 chartRows로 매입단가 계산, API 재호출 없음 */
   const [etfDataCache, setEtfDataCache] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -144,11 +207,12 @@ function DomesticHighDividendSimulation() {
       try {
         setInitialLoading(true);
         setError(null);
-        const { etfs, marketClassification: mcList } =
+        const { etfs, marketClassification: mcList, referenceDate: refDate } =
           await fetchHighDividendBootstrap();
         if (cancelled) return;
         setAllEtfOptions(etfs);
         setMarketClassification(mcList);
+        setReferenceDate(refDate);
         setSelectedMarketClassCode(resolveDefaultMarketClassCode(mcList));
       } catch (err) {
         if (!cancelled) {
@@ -182,7 +246,7 @@ function DomesticHighDividendSimulation() {
     });
   }, [filteredEtfOptions]);
 
-  // 종목 변경 시에만 1년 배당 + 12/6/3개월 매입단가(종가) 일괄 조회 후 캐시
+  // 종목 변경 시 1년 배당 + 1년 일봉(range) 일괄 조회 후 캐시
   useEffect(() => {
     if (!selectedEtf) {
       setEtfDataCache(null);
@@ -198,44 +262,23 @@ function DomesticHighDividendSimulation() {
     setEtfDataCache(null);
     setPurchasePrice(null);
     setDividendData([]);
+    setCurrentPrice(
+      selectedEtf.latest_close != null ? Number(selectedEtf.latest_close) : null
+    );
 
     (async () => {
       setDetailLoading(true);
       setError(null);
       try {
-        const base = CHART_API_BASE_URL;
-        const divUrl = `${DIVIDEND_API_BASE_URL}/etf/${etfId}/period?months_ago=12`;
-
-        const [res12, res6, res3, divRes, firstRes, latestRes, rangeRes] =
-          await Promise.all([
-          fetch(`${base}/etf/${etfId}/period?months_ago=12`),
-          fetch(`${base}/etf/${etfId}/period?months_ago=6`),
-          fetch(`${base}/etf/${etfId}/period?months_ago=3`),
-          fetch(divUrl),
-          fetch(`${base}/etf/${etfId}/first`),
-          fetch(`${base}/etf/${etfId}/latest`),
-          fetch(`${base}/etf/${etfId}/range?months_ago=12`),
+        const startDate = computeStartDateFromReference(referenceDate);
+        const [divRes, rangeRes] = await Promise.all([
+          fetch(
+            `${DIVIDEND_API_BASE_URL}/etf/${etfId}/period?start_date=${startDate}`
+          ),
+          fetch(
+            `${CHART_API_BASE_URL}/etf/${etfId}/range?start_date=${startDate}`
+          ),
         ]);
-
-        const parseClose = async (res) => {
-          if (res.status === 404) return null;
-          if (!res.ok) return null;
-          const data = await res.json();
-          return data?.close != null ? Number(data.close) : null;
-        };
-
-        const [close12, close6, close3, firstTradingClose, latestClose] =
-          await Promise.all([
-            parseClose(res12),
-            parseClose(res6),
-            parseClose(res3),
-            parseClose(firstRes),
-            parseClose(latestRes),
-          ]);
-
-        /** 기간 구간 일봉이 없을 때(상장 이후 데이터가 짧을 때)만 최초 거래일 종가로 보정 */
-        const purchaseForPeriod = (periodClose) =>
-          periodClose != null ? periodClose : firstTradingClose ?? null;
 
         let dividendsRaw = [];
         if (divRes.ok) {
@@ -255,15 +298,8 @@ function DomesticHighDividendSimulation() {
 
         if (cancelled) return;
 
-        setCurrentPrice(latestClose);
         setEtfDataCache({
           etfId,
-          purchaseCloseByMonths: {
-            12: purchaseForPeriod(close12),
-            6: purchaseForPeriod(close6),
-            3: purchaseForPeriod(close3),
-          },
-          firstTradingClose,
           dividendsRaw,
           chartRows,
         });
@@ -284,23 +320,31 @@ function DomesticHighDividendSimulation() {
     return () => {
       cancelled = true;
     };
-  }, [selectedEtf]);
+  }, [selectedEtf, referenceDate]);
 
   // 기간만 바뀌면 캐시에서 매입단가·배당 목록 추출 (DB/ API 재조회 없음)
   useEffect(() => {
     if (!selectedEtf) return;
     if (!etfDataCache || etfDataCache.etfId !== selectedEtf.id) return;
 
-    const key =
-      selectedMonthsAgo === 6 || selectedMonthsAgo === 3 ? selectedMonthsAgo : 12;
-    setPurchasePrice(etfDataCache.purchaseCloseByMonths[key] ?? null);
+    const periodClose = getPurchaseCloseForDaysAgo(
+      etfDataCache.chartRows,
+      selectedDaysAgo,
+      referenceDate
+    );
+    setPurchasePrice(
+      periodClose != null
+        ? periodClose
+        : getOldestCloseFromChartRows(etfDataCache.chartRows)
+    );
 
-    const filtered = filterDividendsByMonthsAgo(
+    const filtered = filterDividendsByDaysAgo(
       etfDataCache.dividendsRaw,
-      selectedMonthsAgo
+      selectedDaysAgo,
+      referenceDate
     );
     setDividendData(sortDividendsByRecordDateDesc(filtered));
-  }, [selectedEtf, selectedMonthsAgo, etfDataCache]);
+  }, [selectedEtf, selectedDaysAgo, etfDataCache, referenceDate]);
 
   // 매입금액, 매입단가, 현재가, selectedEtf가 변경되면 계산
   useEffect(() => {
@@ -444,9 +488,9 @@ function DomesticHighDividendSimulation() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
               {/* 종목 선택 */}
-              <div>
+              <div className="min-w-0">
                 <label className="block text-sm font-medium text-wealth-muted mb-2">
                   종목
                 </label>
@@ -471,18 +515,18 @@ function DomesticHighDividendSimulation() {
               </div>
 
               {/* 기간 선택 */}
-              <div>
+              <div className="min-w-0">
                 <label className="block text-sm font-medium text-wealth-muted mb-2">
                   기간
                 </label>
                 <select
-                  value={selectedMonthsAgo}
-                  onChange={(e) => setSelectedMonthsAgo(Number(e.target.value))}
+                  value={selectedDaysAgo}
+                  onChange={(e) => setSelectedDaysAgo(Number(e.target.value))}
                   className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-wealth-gold/50 focus:border-transparent transition-all disabled:opacity-50"
                   disabled={detailLoading}
                 >
                   {PERIOD_OPTIONS.map((period) => (
-                    <option key={period.monthsAgo} value={period.monthsAgo}>
+                    <option key={period.daysAgo} value={period.daysAgo}>
                       {period.label}
                     </option>
                   ))}
@@ -490,7 +534,7 @@ function DomesticHighDividendSimulation() {
               </div>
 
               {/* 매입금액 */}
-              <div>
+              <div className="min-w-0">
                 <label className="block text-sm font-medium text-wealth-muted mb-2">
                   매입금액
                 </label>
@@ -519,7 +563,15 @@ function DomesticHighDividendSimulation() {
 
           {/* 결과 섹션 */}
           <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
-            <h2 className="text-xl font-semibold mb-6 text-wealth-text">잔고 조회</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+              <h2 className="text-xl font-semibold text-wealth-text">잔고 조회</h2>
+              {referenceDate ? (
+                <span className="text-sm text-wealth-muted tabular-nums">
+                  기준일 :{' '}
+                  {new Date(referenceDate).toLocaleDateString('ko-KR')}
+                </span>
+              ) : null}
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* 매입단가 */}
