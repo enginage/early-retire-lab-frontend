@@ -137,7 +137,7 @@ export default function KrMarketIndicatorsView() {
   const [macdLineSignFilter, setMacdLineSignFilter] = useState('');
   const [macdSignalSignFilter, setMacdSignalSignFilter] = useState('');
   const [macdHistSignFilter, setMacdHistSignFilter] = useState('');
-  const [techSortKey, setTechSortKey] = useState(null);
+  const [techSortKey, setTechSortKey] = useState('market_cap');
   const [techSortDir, setTechSortDir] = useState('desc');
 
   const loadAll = useCallback(async () => {

@@ -818,6 +818,15 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
     [pdfState.items]
   );
 
+  /** 해외 ETF: usa_stocks.krx_isu_cd 매핑된 편입종목만 */
+  const pdfItemsUsaMapped = useMemo(
+    () =>
+      pdfState.items.filter(
+        (p) => String(p.display_ticker ?? '').trim() !== ''
+      ),
+    [pdfState.items]
+  );
+
   const togglePdfPanel = useCallback(
     async (etfId) => {
       if (openPdfEtfId === etfId) {
@@ -979,91 +988,127 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
                   {formatTechDecimal(row.bb_percent_b, 4)}
                 </td>
               </tr>
-              {openPdfEtfId === row.id && (
+              {openPdfEtfId === row.id && (() => {
+                const isOverseasEtf =
+                  resolveMarketClass(row.kr_etf_market_classification) === '해외';
+                const pdfItems = isOverseasEtf ? pdfItemsUsaMapped : pdfItemsWithName;
+                const pdfTableClass = isOverseasEtf
+                  ? 'text-xs sm:text-sm border-collapse min-w-[480px] max-w-full'
+                  : pdfPortfolioTableClass;
+                return (
                 <tr className="bg-wealth-card/25 border-b border-gray-700/40">
                   <td colSpan={colCount} className="px-3 py-3 pl-6 align-top">
-                    <div className="w-fit max-w-full min-w-[760px] rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden">
+                    <div className={`w-fit max-w-full rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden ${isOverseasEtf ? 'min-w-[480px]' : 'min-w-[760px]'}`}>
                       {pdfState.status === 'loading' && (
                         <p className="text-sm text-wealth-muted px-3 py-4">불러오는 중…</p>
                       )}
                       {pdfState.status === 'error' && (
                         <p className="text-sm text-red-400/90 px-3 py-4">{pdfState.error}</p>
                       )}
-                      {pdfState.status === 'done' && pdfItemsWithName.length === 0 && (
+                      {pdfState.status === 'done' && pdfItems.length === 0 && (
                         <p className="text-sm text-wealth-muted px-3 py-4">
                           저장된 편입 구성이 없습니다.
                         </p>
                       )}
-                      {pdfState.status === 'done' && pdfItemsWithName.length > 0 && (
+                      {pdfState.status === 'done' && pdfItems.length > 0 && (
                         <div className="w-fit max-w-full overflow-x-auto">
-                          <table className={pdfPortfolioTableClass}>
+                          <table className={pdfTableClass}>
                             <thead>
                               <tr className="border-b border-gray-700/60 text-left bg-wealth-card/30">
                                 <th className="py-2 px-3 font-medium text-wealth-muted">
                                   티커
                                 </th>
-                                <th className="py-2 px-3 font-medium text-wealth-muted">
-                                  종목명
-                                </th>
-                                <th
-                                  className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted"
-                                  title="kr_stocks.latest_close"
-                                >
-                                  종가
-                                </th>
-                                <th
-                                  className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted"
-                                  title="kr_stocks.latest_volume"
-                                >
-                                  거래량
-                                </th>
-                                <th
-                                  className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted"
-                                  title="kr_stocks.rsi18"
-                                >
-                                  RSI(18)
-                                </th>
-                                <th className="py-2 px-3 font-medium text-right text-wealth-muted">
-                                  비중
-                                </th>
+                                {isOverseasEtf ? (
+                                  <>
+                                    <th className="py-2 px-3 font-medium text-wealth-muted">
+                                      종목명
+                                    </th>
+                                    <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">
+                                      계약수
+                                    </th>
+                                  </>
+                                ) : (
+                                  <>
+                                    <th className="py-2 px-3 font-medium text-wealth-muted">
+                                      종목명
+                                    </th>
+                                    <th
+                                      className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted"
+                                      title="kr_stocks.latest_close"
+                                    >
+                                      종가
+                                    </th>
+                                    <th
+                                      className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted"
+                                      title="kr_stocks.latest_volume"
+                                    >
+                                      거래량
+                                    </th>
+                                    <th
+                                      className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted"
+                                      title="kr_stocks.rsi18"
+                                    >
+                                      RSI(18)
+                                    </th>
+                                    <th className="py-2 px-3 font-medium text-right text-wealth-muted">
+                                      비중
+                                    </th>
+                                  </>
+                                )}
                               </tr>
                             </thead>
                             <tbody>
-                              {pdfItemsWithName.map((p) => (
+                              {pdfItems.map((p) => (
                                 <tr
                                   key={p.id}
                                   className="border-b border-gray-700/30 text-white"
                                 >
                                   <td className="py-1.5 px-3 font-mono text-wealth-gold">
-                                    {p.pdf_ticker}
+                                    {isOverseasEtf ? p.display_ticker : (p.display_ticker ?? p.pdf_ticker)}
                                   </td>
-                                  <td
-                                    className="py-1.5 px-3 text-wealth-muted min-w-[12rem] truncate"
-                                    title={p.stock_name}
-                                  >
-                                    {p.stock_name}
-                                  </td>
-                                  <td
-                                    className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap"
-                                    title="최근 종가 (kr_stocks)"
-                                  >
-                                    {formatIntKO(p.stock_latest_close)}
-                                  </td>
-                                  <td
-                                    className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap"
-                                    title="최근 거래량 (kr_stocks)"
-                                  >
-                                    {formatIntKO(p.stock_latest_volume)}
-                                  </td>
-                                  <td
-                                    className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap"
-                                    title="RSI(18) (kr_stocks)"
-                                  >
-                                    {formatTechDecimal(p.stock_rsi18, 2)}
-                                  </td>
-                                  <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted">
-                                    {formatTechDecimal(p.proportion, 2)}
-                                  </td>
+                                  {isOverseasEtf ? (
+                                    <>
+                                      <td
+                                        className="py-1.5 px-3 text-wealth-muted min-w-[12rem] truncate"
+                                        title={p.stock_name}
+                                      >
+                                        {p.stock_name || '-'}
+                                      </td>
+                                      <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap">
+                                        {formatTechDecimal(p.contract_cnt, 2)}
+                                      </td>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <td
+                                        className="py-1.5 px-3 text-wealth-muted min-w-[12rem] truncate"
+                                        title={p.stock_name}
+                                      >
+                                        {p.stock_name}
+                                      </td>
+                                      <td
+                                        className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap"
+                                        title="최근 종가 (kr_stocks)"
+                                      >
+                                        {formatIntKO(p.stock_latest_close)}
+                                      </td>
+                                      <td
+                                        className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap"
+                                        title="최근 거래량 (kr_stocks)"
+                                      >
+                                        {formatIntKO(p.stock_latest_volume)}
+                                      </td>
+                                      <td
+                                        className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap"
+                                        title="RSI(18) (kr_stocks)"
+                                      >
+                                        {formatTechDecimal(p.stock_rsi18, 2)}
+                                      </td>
+                                      <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted">
+                                        {formatTechDecimal(p.proportion, 2)}
+                                      </td>
+                                    </>
+                                  )}
                                 </tr>
                               ))}
                             </tbody>
@@ -1073,7 +1118,8 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
                     </div>
                   </td>
                 </tr>
-              )}
+                );
+              })()}
             </Fragment>
           ))}
         </tbody>

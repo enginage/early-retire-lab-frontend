@@ -24,6 +24,7 @@ function USAStocks() {
     business_summary: '',
     usa_industry_type: '',
     use_yn: true,
+    krx_isu_cd: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -125,6 +126,7 @@ function USAStocks() {
       business_summary: '',
       usa_industry_type: '',
       use_yn: true,
+      krx_isu_cd: '',
     });
     setEditingId('new');
   };
@@ -227,6 +229,7 @@ function USAStocks() {
         business_summary: stockData.business_summary || null,
         usa_industry_type: stockData.usa_industry_type || null,
         use_yn: typeof stockData.use_yn === 'boolean' ? stockData.use_yn : true,
+        krx_isu_cd: stockData.krx_isu_cd?.trim() || null,
       };
 
       let response;
@@ -265,6 +268,7 @@ function USAStocks() {
           business_summary: '',
           usa_industry_type: '',
           use_yn: true,
+          krx_isu_cd: '',
         });
       } else {
         const errorData = await response.json();
@@ -322,6 +326,7 @@ function USAStocks() {
       business_summary: '',
       usa_industry_type: '',
       use_yn: true,
+      krx_isu_cd: '',
     });
   };
 
@@ -447,6 +452,14 @@ function USAStocks() {
               nowrap: true,
               render: (value) => (value ? '사용' : '미사용'),
             },
+            {
+              key: 'krx_isu_cd',
+              label: 'KRX_ISU_CD',
+              align: 'center',
+              width: '110px',
+              nowrap: true,
+              render: (value) => value || '-',
+            },
           ]}
           data={stocks}
           editingId={editingId}
@@ -522,6 +535,15 @@ function USAStocks() {
                   <option value="false">미사용</option>
                 </select>
               </td>
+              <td className="py-3 px-4 whitespace-nowrap" style={{ width: '110px' }}>
+                <input
+                  type="text"
+                  value={newRow.krx_isu_cd || ''}
+                  onChange={(e) => handleInputChange('new', 'krx_isu_cd', e.target.value)}
+                  className="w-full px-3 py-1 bg-wealth-card border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+                  placeholder="KRX_ISU_CD"
+                />
+              </td>
             </>
           )}
           renderEditRow={(row) => (
@@ -585,6 +607,15 @@ function USAStocks() {
                   <option value="false">미사용</option>
                 </select>
               </td>
+              <td className="py-3 px-4 whitespace-nowrap" style={{ width: '110px' }}>
+                <input
+                  type="text"
+                  value={row.krx_isu_cd || ''}
+                  onChange={(e) => handleInputChange(row.id, 'krx_isu_cd', e.target.value)}
+                  className="w-full px-3 py-1 bg-wealth-card border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+                  placeholder="KRX_ISU_CD"
+                />
+              </td>
             </>
           )}
           renderViewRow={(row) => (
@@ -610,6 +641,9 @@ function USAStocks() {
               </td>
               <td className="py-3 px-4 text-white text-sm whitespace-nowrap text-center" style={{ width: '110px' }}>
                 {row.use_yn ? '사용' : '미사용'}
+              </td>
+              <td className="py-3 px-4 text-white text-sm whitespace-nowrap text-center font-mono" style={{ width: '110px' }}>
+                {row.krx_isu_cd || '-'}
               </td>
             </>
           )}
