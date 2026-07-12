@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getApiUrl, API_ENDPOINTS } from '../../utils/api';
 import { ensureKRStockCache } from '../../components/KRStockSelector';
 
 const BATCH_JOBS_API = getApiUrl(API_ENDPOINTS.BATCH_JOBS);
+const COMMON_CODE_MASTERS_API = getApiUrl(API_ENDPOINTS.COMMON_CODE_MASTERS);
+const COMMON_CODE_DETAILS_API = getApiUrl(API_ENDPOINTS.COMMON_CODE_DETAILS);
 
 function getTodayYyyyMmDd() {
   const d = new Date();
@@ -13,6 +15,14 @@ function toYyyyMmDd(val) {
   if (!val || !val.trim()) return '';
   if (val.includes('-')) return val;
   return `${val.slice(0, 4)}-${val.slice(4, 6)}-${val.slice(6, 8)}`;
+}
+
+function resolveDefaultMarketClassCode(options) {
+  const list = Array.isArray(options) ? options : [];
+  const domestic = list.find(
+    (o) => String(o.detail_code_name || '').trim() === '국내'
+  );
+  return String(domestic?.detail_code ?? list[0]?.detail_code ?? '').trim();
 }
 
 function BatchJobs() {
@@ -33,6 +43,49 @@ function BatchJobs() {
   const [chartTableLoading, setChartTableLoading] = useState(false);
   const [chartTableError, setChartTableError] = useState(null);
   const [chartTableResult, setChartTableResult] = useState(null);
+  const [pdfPortfolioMarketOptions, setPdfPortfolioMarketOptions] = useState([]);
+  const [pdfPortfolioMarketClass, setPdfPortfolioMarketClass] = useState('');
+  const [pdfPortfolioLoading, setPdfPortfolioLoading] = useState(false);
+  const [pdfPortfolioError, setPdfPortfolioError] = useState(null);
+  const [pdfPortfolioResult, setPdfPortfolioResult] = useState(null);
+  const [etfListingDate, setEtfListingDate] = useState(getTodayYyyyMmDd);
+  const [etfListingLoading, setEtfListingLoading] = useState(false);
+  const [etfListingError, setEtfListingError] = useState(null);
+  const [etfListingResult, setEtfListingResult] = useState(null);
+  const [usaStockIndicatorsEndDate, setUsaStockIndicatorsEndDate] = useState(getTodayYyyyMmDd);
+  const [usaStockIndicatorsTicker, setUsaStockIndicatorsTicker] = useState('');
+  const [usaStockIndicatorsLoading, setUsaStockIndicatorsLoading] = useState(false);
+  const [usaStockIndicatorsError, setUsaStockIndicatorsError] = useState(null);
+  const [usaStockIndicatorsResult, setUsaStockIndicatorsResult] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const masterRes = await fetch(COMMON_CODE_MASTERS_API);
+        if (!masterRes.ok) return;
+        const masters = await masterRes.json();
+        const mcMaster = (Array.isArray(masters) ? masters : []).find(
+          (m) => m.code === 'kr_etf_market_classification'
+        );
+        if (!mcMaster?.id) return;
+        const detailRes = await fetch(
+          `${COMMON_CODE_DETAILS_API}?master_id=${mcMaster.id}&skip=0&limit=500`
+        );
+        if (!detailRes.ok) return;
+        const details = await detailRes.json();
+        const list = Array.isArray(details) ? details : [];
+        if (cancelled) return;
+        setPdfPortfolioMarketOptions(list);
+        setPdfPortfolioMarketClass(resolveDefaultMarketClassCode(list));
+      } catch (err) {
+        console.error('시장분류(kr_etf_market_classification) 로드 실패:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleRunDartContract = async () => {
     if (!dartContractDate.trim()) {
@@ -150,6 +203,94 @@ function BatchJobs() {
     }
   };
 
+  const handleRunDomesticEtfsListingDate = async () => {
+    if (!etfListingDate.trim()) {
+      setEtfListingError('날짜를 선택해주세요.');
+      return;
+    }
+    setEtfListingLoading(true);
+    setEtfListingError(null);
+    setEtfListingResult(null);
+    try {
+      const res = await fetch(`${BATCH_JOBS_API}/domestic-etfs-listing-date/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: toYyyyMmDd(etfListingDate) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = Array.isArray(data.detail) ? data.detail[0]?.msg : data.detail;
+        throw new Error(msg || '실행 요청 실패');
+      }
+      setEtfListingResult(data);
+    } catch (err) {
+      setEtfListingError(err.message || '실행 요청에 실패했습니다.');
+    } finally {
+      setEtfListingLoading(false);
+    }
+  };
+
+  const handleRunDomesticEtfsPdfPortfolio = async () => {
+    if (!pdfPortfolioMarketClass.trim()) {
+      setPdfPortfolioError('시장분류를 선택해주세요.');
+      return;
+    }
+    setPdfPortfolioLoading(true);
+    setPdfPortfolioError(null);
+    setPdfPortfolioResult(null);
+    try {
+      const res = await fetch(`${BATCH_JOBS_API}/domestic-etfs-pdf-portfolio/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ market_class: pdfPortfolioMarketClass }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = Array.isArray(data.detail) ? data.detail[0]?.msg : data.detail;
+        throw new Error(msg || '실행 요청 실패');
+      }
+      setPdfPortfolioResult(data);
+    } catch (err) {
+      setPdfPortfolioError(err.message || '실행 요청에 실패했습니다.');
+    } finally {
+      setPdfPortfolioLoading(false);
+    }
+  };
+
+  const handleRunUsaStockIndicatorsSync = async () => {
+    if (!usaStockIndicatorsEndDate.trim()) {
+      setUsaStockIndicatorsError('종료일을 선택해주세요.');
+      return;
+    }
+    setUsaStockIndicatorsLoading(true);
+    setUsaStockIndicatorsError(null);
+    setUsaStockIndicatorsResult(null);
+    try {
+      const payload = {
+        end: toYyyyMmDd(usaStockIndicatorsEndDate),
+      };
+      const ticker = usaStockIndicatorsTicker.trim();
+      if (ticker) {
+        payload.ticker = ticker;
+      }
+      const res = await fetch(`${BATCH_JOBS_API}/sync-usa-stocks-technical-indicators/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = Array.isArray(data.detail) ? data.detail[0]?.msg : data.detail;
+        throw new Error(msg || '실행 요청 실패');
+      }
+      setUsaStockIndicatorsResult(data);
+    } catch (err) {
+      setUsaStockIndicatorsError(err.message || '실행 요청에 실패했습니다.');
+    } finally {
+      setUsaStockIndicatorsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen space-y-6">
       <div>
@@ -161,7 +302,7 @@ function BatchJobs() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* 인포스탁 Daily 특징 테마 */}
         <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
@@ -329,6 +470,166 @@ function BatchJobs() {
           {dartContractResult && (
             <div className="mt-4 bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm">
               {dartContractResult.message} (날짜: {dartContractResult.date})
+            </div>
+          )}
+        </div>
+
+        {/* KRX ETF 상장일 domestic_etfs 적재 */}
+        <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
+          <h2 className="text-lg font-bold text-white mb-4">
+            KRX ETF 상장일 domestic_etfs 적재
+          </h2>
+          <p className="text-wealth-muted text-sm mb-4">
+            KRX HTTP 세션으로 ETF 전종목 기본정보를 조회해, 지정 상장일 종목을{' '}
+            <code className="text-xs bg-black/30 px-1 rounded">stock.domestic_etfs</code>에
+            저장합니다. 사전에 <code className="text-xs bg-black/30 px-1 rounded">krx_session_extender</code>{' '}
+            (HTTP 세션) 실행이 필요합니다. Excel 수동 다운로드는 불필요합니다.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-wealth-muted text-xs mb-1">상장일</label>
+              <input
+                type="date"
+                value={etfListingDate}
+                onChange={(e) => setEtfListingDate(e.target.value)}
+                className="px-3 py-2 bg-wealth-card border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleRunDomesticEtfsListingDate}
+              disabled={etfListingLoading}
+              className="px-4 py-2 bg-wealth-gold hover:bg-yellow-600 text-wealth-dark font-medium rounded-lg transition-colors disabled:opacity-50"
+            >
+              {etfListingLoading ? '실행 중...' : '실행'}
+            </button>
+          </div>
+          {etfListingError && (
+            <div className="mt-4 bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400 text-sm">
+              {etfListingError}
+            </div>
+          )}
+          {etfListingResult && (
+            <div className="mt-4 bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm">
+              {etfListingResult.message} (상장일: {etfListingResult.date})
+            </div>
+          )}
+        </div>
+
+        {/* 국내 ETF PDF 포트폴리오 적재 */}
+        <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
+          <h2 className="text-lg font-bold text-white mb-4">
+            국내 ETF PDF 포트폴리오 적재
+          </h2>
+          <p className="text-wealth-muted text-sm mb-4">
+            pykrx <code className="text-xs bg-black/30 px-1 rounded">get_etf_portfolio_deposit_file</code> 결과를{' '}
+            <code className="text-xs bg-black/30 px-1 rounded">stock.domestic_etfs_pdf</code>에 저장합니다.
+            시장분류별로 해당 ETF만 적재합니다.
+          </p>
+          <div className="mb-4">
+            <p className="text-sm text-wealth-muted mb-2">시장분류</p>
+            <div
+              className="inline-flex flex-wrap gap-2"
+              role="group"
+              aria-label="시장분류 선택"
+            >
+              {pdfPortfolioMarketOptions.map((opt) => {
+                  const code = String(opt.detail_code ?? '').trim();
+                  const active = pdfPortfolioMarketClass === code;
+                  return (
+                    <button
+                      key={opt.id ?? code}
+                      type="button"
+                      onClick={() => setPdfPortfolioMarketClass(code)}
+                      disabled={pdfPortfolioLoading || !code}
+                      className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 ${
+                        active
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-wealth-card/80 border border-blue-500/70 text-blue-300 hover:bg-blue-500/15'
+                      }`}
+                    >
+                      {opt.detail_code_name || code}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <button
+              type="button"
+              onClick={handleRunDomesticEtfsPdfPortfolio}
+              disabled={pdfPortfolioLoading || !pdfPortfolioMarketClass.trim()}
+              className="px-4 py-2 bg-wealth-gold hover:bg-yellow-600 text-wealth-dark font-medium rounded-lg transition-colors disabled:opacity-50"
+            >
+              {pdfPortfolioLoading ? '실행 중...' : '실행'}
+            </button>
+          </div>
+          {pdfPortfolioError && (
+            <div className="mt-4 bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400 text-sm">
+              {pdfPortfolioError}
+            </div>
+          )}
+          {pdfPortfolioResult && (
+            <div className="mt-4 bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm">
+              {pdfPortfolioResult.message} (시장분류: {pdfPortfolioResult.market_class})
+            </div>
+          )}
+        </div>
+
+        {/* 미국 상장 기업 기술지표 동기화 */}
+        <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
+          <h2 className="text-lg font-bold text-white mb-4">
+            미국 상장 기업 기술지표 동기화
+          </h2>
+          <p className="text-wealth-muted text-sm mb-4">
+            FinanceDataReader로 usa_stocks 일봉(종료일 기준 2개월)을 조회해 RSI·MACD·BB 등
+            스냅샷을 갱신합니다. 티커를 비우면 use_yn=True 전 종목을 처리합니다.
+            (명령:{' '}
+            <code className="text-xs bg-black/30 px-1 rounded whitespace-nowrap">
+              python -m app.import.sync_usa_stocks_technical_indicators
+            </code>
+            )
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-wealth-muted text-xs mb-1">종료일 (--end)</label>
+              <input
+                type="date"
+                value={usaStockIndicatorsEndDate}
+                onChange={(e) => setUsaStockIndicatorsEndDate(e.target.value)}
+                className="px-3 py-2 bg-wealth-card border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+              />
+            </div>
+            <div>
+              <label className="block text-wealth-muted text-xs mb-1">티커 (선택)</label>
+              <input
+                type="text"
+                value={usaStockIndicatorsTicker}
+                onChange={(e) => setUsaStockIndicatorsTicker(e.target.value.toUpperCase())}
+                placeholder="예: AAPL"
+                autoComplete="off"
+                className="px-3 py-2 bg-wealth-card border border-gray-700 rounded-lg text-white text-sm w-28 focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleRunUsaStockIndicatorsSync}
+              disabled={usaStockIndicatorsLoading}
+              className="px-4 py-2 bg-wealth-gold hover:bg-yellow-600 text-wealth-dark font-medium rounded-lg transition-colors disabled:opacity-50"
+            >
+              {usaStockIndicatorsLoading ? '실행 중...' : '실행'}
+            </button>
+          </div>
+          {usaStockIndicatorsError && (
+            <div className="mt-4 bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400 text-sm">
+              {usaStockIndicatorsError}
+            </div>
+          )}
+          {usaStockIndicatorsResult && (
+            <div className="mt-4 bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm">
+              {usaStockIndicatorsResult.message}
+              {usaStockIndicatorsResult.end ? ` (종료일: ${usaStockIndicatorsResult.end})` : ''}
+              {usaStockIndicatorsResult.ticker ? ` (티커: ${usaStockIndicatorsResult.ticker})` : ''}
             </div>
           )}
         </div>

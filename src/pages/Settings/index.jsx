@@ -8,11 +8,9 @@ import DomesticETF from './DomesticETF';
 import USAETF from './USAETF';
 import KRStocks from './KRStocks';
 import USAStocks from './USAStocks';
-import InvestmentIndicatorsSettings from './InvestmentIndicatorsSettings';
 
 const MENUS = [
   { key: 'basic', label: '기본설정' },
-  { key: 'investment-indicators-settings', label: '투자지표 설정' },
   { key: 'commoncode', label: '공통코드' },
   { key: 'financial', label: '금융기관' },
   { key: 'kr-stocks', label: '국내 주식' },
@@ -45,8 +43,6 @@ function Settings() {
     switch (activeMenu) {
       case 'basic':
         return <BasicSettings />;
-      case 'investment-indicators-settings':
-        return <InvestmentIndicatorsSettings />;
       case 'commoncode':
         return <CommonCode />;
       case 'financial':

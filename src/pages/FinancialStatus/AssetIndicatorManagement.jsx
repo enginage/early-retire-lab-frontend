@@ -11,7 +11,9 @@ import CommonCodeSelector from '../../components/CommonCodeSelector';
 import FinancialInstitutionSelector from '../../components/FinancialInstitutionSelector';
 import KRStockSelector from '../../components/KRStockSelector';
 import DomesticETFSelector from '../../components/DomesticETFSelector';
+import USAStockSelector from '../../components/USAStockSelector';
 import { getApiUrl, getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
+import { fetchDomesticEtfFilterCommonCodesCached } from '../InvestmentIndicators/investmentIndicatorFilters';
 
 const ACCOUNTS_API = getApiUrl(API_ENDPOINTS.ASSET_INDICATOR_ACCOUNTS);
 const HOLDINGS_API = getApiUrl(API_ENDPOINTS.ASSET_INDICATOR_HOLDINGS);
@@ -36,9 +38,35 @@ function fmtDec(v, d = 2) {
   });
 }
 
+function fmtFluctuationRate(v) {
+  if (v === null || v === undefined || v === '') return '-';
+  const n = Number(v);
+  if (Number.isNaN(n)) return '-';
+  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+}
+
+function fluctuationRateColor(v) {
+  if (v === null || v === undefined || v === '') return 'text-wealth-muted';
+  const n = Number(v);
+  if (Number.isNaN(n)) return 'text-wealth-muted';
+  if (n > 0) return 'text-red-400';
+  if (n < 0) return 'text-blue-400';
+  return 'text-wealth-muted';
+}
+
+function resolveMarketClassName(code, marketClassNameByCode) {
+  const c = String(code ?? '').trim();
+  if (!c) return '-';
+  if (marketClassNameByCode?.has(c)) {
+    return marketClassNameByCode.get(c);
+  }
+  return c;
+}
+
 function assetKindLabel(kind) {
   if (kind === 'kr_stock') return '국내주식';
   if (kind === 'domestic_etf') return '국내ETF';
+  if (kind === 'usa_stock') return '미장주식';
   return kind || '-';
 }
 
@@ -132,6 +160,7 @@ export default function AssetIndicatorManagement() {
   const [selectingFiFor, setSelectingFiFor] = useState(null);
   const [showKrSelector, setShowKrSelector] = useState(false);
   const [showEtfSelector, setShowEtfSelector] = useState(false);
+  const [showUsaStockSelector, setShowUsaStockSelector] = useState(false);
   const [openPdfHoldingId, setOpenPdfHoldingId] = useState(null);
   const [pdfState, setPdfState] = useState({
     status: 'idle',
@@ -139,8 +168,34 @@ export default function AssetIndicatorManagement() {
     error: null,
   });
   const pdfFetchGenRef = useRef(0);
-  const [techSortKey, setTechSortKey] = useState(null);
+  const [techSortKey, setTechSortKey] = useState('rsi18');
   const [techSortDir, setTechSortDir] = useState('desc');
+  const [marketClassOptions, setMarketClassOptions] = useState([]);
+
+  const marketClassNameByCode = useMemo(() => {
+    const m = new Map();
+    for (const opt of marketClassOptions) {
+      const code = String(opt.detail_code ?? '').trim();
+      if (!code) continue;
+      m.set(code, String(opt.detail_code_name ?? '').trim() || code);
+    }
+    return m;
+  }, [marketClassOptions]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { marketClassDetails } = await fetchDomesticEtfFilterCommonCodesCached();
+        if (!cancelled) setMarketClassOptions(marketClassDetails || []);
+      } catch (e) {
+        console.error('시장분류 공통코드 로드 실패:', e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const sortedHoldings = useMemo(() => {
     if (!techSortKey) return holdings;
@@ -162,6 +217,14 @@ export default function AssetIndicatorManagement() {
   const pdfItemsWithName = useMemo(
     () =>
       pdfState.items.filter((p) => String(p.stock_name ?? '').trim() !== ''),
+    [pdfState.items]
+  );
+
+  const pdfItemsUsaMapped = useMemo(
+    () =>
+      pdfState.items.filter(
+        (p) => String(p.display_ticker ?? '').trim() !== ''
+      ),
     [pdfState.items]
   );
 
@@ -540,6 +603,14 @@ export default function AssetIndicatorManagement() {
               >
                 + 국내ETF
               </button>
+              <button
+                type="button"
+                onClick={() => setShowUsaStockSelector(true)}
+                disabled={holdingsLoading}
+                className="px-3 py-2 text-sm bg-wealth-card border border-gray-600 rounded-lg text-white hover:border-wealth-gold disabled:opacity-50"
+              >
+                + 미장주식
+              </button>
             </div>
           </div>
 
@@ -627,7 +698,7 @@ export default function AssetIndicatorManagement() {
                 ) : holdings.length === 0 ? (
                   <tr>
                     <td colSpan={12} className="py-6 text-center text-wealth-muted">
-                      보유종목이 없습니다. 국내주식 또는 국내ETF를 추가하세요.
+                      보유종목이 없습니다. 국내주식, 국내ETF 또는 미장주식을 추가하세요.
                     </td>
                   </tr>
                 ) : (
@@ -692,24 +763,33 @@ export default function AssetIndicatorManagement() {
                           </button>
                         </td>
                       </tr>
-                      {h.asset_kind === 'domestic_etf' && openPdfHoldingId === h.id && (
+                      {h.asset_kind === 'domestic_etf' && openPdfHoldingId === h.id && (() => {
+                        const isOverseasEtf =
+                          resolveMarketClassName(
+                            h.kr_etf_market_classification,
+                            marketClassNameByCode
+                          ) === '해외';
+                        const pdfItems = isOverseasEtf ? pdfItemsUsaMapped : pdfItemsWithName;
+                        return (
                         <tr className="bg-wealth-card/25 border-b border-gray-800/50">
                           <td colSpan={HOLDINGS_COL_COUNT} className="px-3 py-3 pl-6 align-top">
-                            <div className="w-fit max-w-full min-w-[760px] rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden">
+                            <div className="w-fit max-w-full rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden min-w-[760px]">
                               {pdfState.status === 'loading' && (
                                 <p className="text-sm text-wealth-muted px-3 py-4">불러오는 중…</p>
                               )}
                               {pdfState.status === 'error' && (
                                 <p className="text-sm text-red-400/90 px-3 py-4">{pdfState.error}</p>
                               )}
-                              {pdfState.status === 'done' && pdfItemsWithName.length === 0 && (
+                              {pdfState.status === 'done' && pdfItems.length === 0 && (
                                 <p className="text-sm text-wealth-muted px-3 py-4">
-                                  저장된 편입 구성이 없습니다.
+                                  {isOverseasEtf
+                                    ? '보유 종목 중 미국 상장된 주식만 제공합니다.'
+                                    : '저장된 편입 구성이 없습니다.'}
                                 </p>
                               )}
-                              {pdfState.status === 'done' && pdfItemsWithName.length > 0 && (
+                              {pdfState.status === 'done' && pdfItems.length > 0 && (
                                 <div className="w-fit max-w-full overflow-x-auto">
-                                  <table className="text-xs sm:text-sm border-collapse min-w-[760px] max-w-full">
+                                  <table className="text-xs sm:text-sm border-collapse max-w-full min-w-[760px]">
                                     <thead>
                                       <tr className="border-b border-gray-700/60 text-left bg-wealth-card/30">
                                         <th className="py-2 px-3 font-medium text-wealth-muted">티커</th>
@@ -718,42 +798,48 @@ export default function AssetIndicatorManagement() {
                                           종가
                                         </th>
                                         <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">
+                                          등락률
+                                        </th>
+                                        <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">
                                           거래량
                                         </th>
                                         <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">
                                           RSI(18)
                                         </th>
-                                        <th className="py-2 px-3 font-medium text-right text-wealth-muted">
-                                          비중
-                                        </th>
                                       </tr>
                                     </thead>
                                     <tbody>
-                                      {pdfItemsWithName.map((p) => (
+                                      {pdfItems.map((p) => (
                                         <tr
                                           key={p.id}
                                           className="border-b border-gray-700/30 text-white"
                                         >
                                           <td className="py-1.5 px-3 font-mono text-wealth-gold">
-                                            {p.pdf_ticker}
+                                            {isOverseasEtf
+                                              ? p.display_ticker
+                                              : (p.display_ticker ?? p.pdf_ticker)}
                                           </td>
                                           <td
                                             className="py-1.5 px-3 text-wealth-muted min-w-[12rem] truncate"
                                             title={p.stock_name}
                                           >
-                                            {p.stock_name}
+                                            {p.stock_name || '-'}
                                           </td>
                                           <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap">
-                                            {fmtNum(p.stock_latest_close)}
+                                            {isOverseasEtf
+                                              ? fmtDec(p.stock_latest_close, 2)
+                                              : fmtNum(p.stock_latest_close)}
+                                          </td>
+                                          <td
+                                            className={`py-1.5 px-3 text-right tabular-nums whitespace-nowrap ${fluctuationRateColor(p.stock_fluctuation_rate)}`}
+                                          >
+                                            {fmtFluctuationRate(p.stock_fluctuation_rate)}
                                           </td>
                                           <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap">
                                             {fmtNum(p.stock_latest_volume)}
                                           </td>
                                           <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap">
                                             {fmtDec(p.stock_rsi18, 2)}
-                                          </td>
-                                          <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted">
-                                            {fmtDec(p.proportion, 2)}
                                           </td>
                                         </tr>
                                       ))}
@@ -764,7 +850,8 @@ export default function AssetIndicatorManagement() {
                             </div>
                           </td>
                         </tr>
-                      )}
+                        );
+                      })()}
                     </Fragment>
                   ))
                 )}
@@ -798,6 +885,15 @@ export default function AssetIndicatorManagement() {
         onSelect={(etf) => {
           addHolding('domestic_etf', etf.id);
           setShowEtfSelector(false);
+        }}
+      />
+
+      <USAStockSelector
+        isOpen={showUsaStockSelector}
+        onClose={() => setShowUsaStockSelector(false)}
+        onSelect={(stock) => {
+          addHolding('usa_stock', stock.id);
+          setShowUsaStockSelector(false);
         }}
       />
     </div>

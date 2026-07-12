@@ -1,18 +1,20 @@
 import { getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
 
 const KR_STOCKS_URL = getStocksRestApiUrl(API_ENDPOINTS.KR_STOCKS);
+const USA_STOCKS_URL = getStocksRestApiUrl(API_ENDPOINTS.USA_STOCKS);
 const DOMESTIC_ETFS_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS);
 const ASSET_MANAGEMENT_INST_URL = getStocksRestApiUrl(
   API_ENDPOINTS.ASSET_MANAGEMENT_INSTITUTIONS
 );
 
 const KR_STOCKS_PAGE_SIZE = 1000;
+const USA_STOCKS_PAGE_SIZE = 1000;
 const DOMESTIC_ETFS_PAGE_SIZE = 1000;
 const KR_STOCKS_MAX_PAGES = 5;
+const USA_STOCKS_MAX_PAGES = 10;
 const DOMESTIC_ETFS_MAX_PAGES = 3;
-
-let krStocksIndicatorsCache = null;
-let krStocksIndicatorsPromise = null;
+const KR_STOCKS_INDICATORS_PAGE_SIZE = 30;
+const USA_STOCKS_INDICATORS_PAGE_SIZE = 30;
 
 let domesticEtfsIndicatorsCache = null;
 let domesticEtfsIndicatorsPromise = null;
@@ -67,45 +69,126 @@ async function fetchAllPagesParallel(baseUrl, baseParams, errorLabel, options = 
   return merged;
 }
 
-/** 국내 상장 기업 기술 지표 — RestAPI 경량 /indicators, 병렬 페이지 + 모듈 캐시 */
+/** 국내 상장 기업 기술 지표 — RestAPI /indicators 서버 페이징 */
+export async function fetchKrStocksIndicatorsPage(params = {}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set('use_yn', 'true');
+  searchParams.set('exclude_zero_volume', 'true');
+  searchParams.set('skip', String(params.skip ?? 0));
+  searchParams.set('limit', String(params.limit ?? KR_STOCKS_INDICATORS_PAGE_SIZE));
+  searchParams.set('sort_by', params.sortBy ?? 'market_cap');
+  searchParams.set('sort_dir', params.sortDir ?? 'desc');
+
+  if (params.market) {
+    searchParams.set('market', params.market);
+  }
+  if (params.search) {
+    searchParams.set('search', params.search);
+  }
+  if (params.rsi18Op && params.rsi18Val != null && params.rsi18Val !== '') {
+    searchParams.set('rsi18_op', params.rsi18Op);
+    searchParams.set('rsi18_val', String(params.rsi18Val));
+  }
+  if (params.rsi30Op && params.rsi30Val != null && params.rsi30Val !== '') {
+    searchParams.set('rsi30_op', params.rsi30Op);
+    searchParams.set('rsi30_val', String(params.rsi30Val));
+  }
+  if (params.bbWidthOp && params.bbWidthVal != null && params.bbWidthVal !== '') {
+    searchParams.set('bb_width_op', params.bbWidthOp);
+    searchParams.set('bb_width_val', String(params.bbWidthVal));
+  }
+  if (params.bbPercentBOp && params.bbPercentBVal != null && params.bbPercentBVal !== '') {
+    searchParams.set('bb_percent_b_op', params.bbPercentBOp);
+    searchParams.set('bb_percent_b_val', String(params.bbPercentBVal));
+  }
+  if (params.macdLineSign) {
+    searchParams.set('macd_line_sign', params.macdLineSign);
+  }
+  if (params.macdSignalSign) {
+    searchParams.set('macd_signal_sign', params.macdSignalSign);
+  }
+  if (params.macdHistSign) {
+    searchParams.set('macd_hist_sign', params.macdHistSign);
+  }
+
+  const res = await fetch(`${KR_STOCKS_URL}/indicators?${searchParams.toString()}`);
+  if (!res.ok) {
+    throw new Error(`국내 상장 기업 기술 지표 조회 실패: ${res.status}`);
+  }
+  const data = await res.json();
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    total: Number(data?.total) || 0,
+    skip: Number(data?.skip) || 0,
+    limit: Number(data?.limit) || KR_STOCKS_INDICATORS_PAGE_SIZE,
+  };
+}
+
+/** @deprecated fetchKrStocksIndicatorsPage 사용 */
 export async function fetchKrStocksIndicatorsCached() {
-  if (krStocksIndicatorsCache) {
-    return krStocksIndicatorsCache;
+  const page = await fetchKrStocksIndicatorsPage();
+  return page.items;
+}
+
+/** 미국 상장 기업 기술 지표 — RestAPI /indicators 서버 페이징 */
+export async function fetchUsaStocksIndicatorsPage(params = {}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set('use_yn', 'true');
+  searchParams.set('exclude_zero_volume', 'true');
+  searchParams.set('skip', String(params.skip ?? 0));
+  searchParams.set('limit', String(params.limit ?? USA_STOCKS_INDICATORS_PAGE_SIZE));
+  searchParams.set('sort_by', params.sortBy ?? 'latest_volume');
+  searchParams.set('sort_dir', params.sortDir ?? 'desc');
+
+  if (params.market) {
+    searchParams.set('market', params.market);
   }
-  if (krStocksIndicatorsPromise) {
-    return krStocksIndicatorsPromise;
+  if (params.search) {
+    searchParams.set('search', params.search);
+  }
+  if (params.rsi18Op && params.rsi18Val != null && params.rsi18Val !== '') {
+    searchParams.set('rsi18_op', params.rsi18Op);
+    searchParams.set('rsi18_val', String(params.rsi18Val));
+  }
+  if (params.rsi30Op && params.rsi30Val != null && params.rsi30Val !== '') {
+    searchParams.set('rsi30_op', params.rsi30Op);
+    searchParams.set('rsi30_val', String(params.rsi30Val));
+  }
+  if (params.bbWidthOp && params.bbWidthVal != null && params.bbWidthVal !== '') {
+    searchParams.set('bb_width_op', params.bbWidthOp);
+    searchParams.set('bb_width_val', String(params.bbWidthVal));
+  }
+  if (params.bbPercentBOp && params.bbPercentBVal != null && params.bbPercentBVal !== '') {
+    searchParams.set('bb_percent_b_op', params.bbPercentBOp);
+    searchParams.set('bb_percent_b_val', String(params.bbPercentBVal));
+  }
+  if (params.macdLineSign) {
+    searchParams.set('macd_line_sign', params.macdLineSign);
+  }
+  if (params.macdSignalSign) {
+    searchParams.set('macd_signal_sign', params.macdSignalSign);
+  }
+  if (params.macdHistSign) {
+    searchParams.set('macd_hist_sign', params.macdHistSign);
   }
 
-  krStocksIndicatorsPromise = (async () => {
-    const baseParams = new URLSearchParams();
-    baseParams.set('use_yn', 'true');
+  const res = await fetch(`${USA_STOCKS_URL}/indicators?${searchParams.toString()}`);
+  if (!res.ok) {
+    throw new Error(`미국 상장 기업 기술 지표 조회 실패: ${res.status}`);
+  }
+  const data = await res.json();
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    total: Number(data?.total) || 0,
+    skip: Number(data?.skip) || 0,
+    limit: Number(data?.limit) || USA_STOCKS_INDICATORS_PAGE_SIZE,
+  };
+}
 
-    let data;
-    try {
-      data = await fetchAllPagesParallel(
-        `${KR_STOCKS_URL}/indicators`,
-        baseParams,
-        '국내 상장 기업 기술 지표 조회 실패',
-        { pageSize: KR_STOCKS_PAGE_SIZE, maxPages: KR_STOCKS_MAX_PAGES }
-      );
-    } catch {
-      data = await fetchAllPagesParallel(
-        KR_STOCKS_URL,
-        baseParams,
-        '국내 상장 기업 기술 지표 조회 실패',
-        { pageSize: KR_STOCKS_PAGE_SIZE, maxPages: KR_STOCKS_MAX_PAGES }
-      );
-    }
-
-    krStocksIndicatorsCache = data;
-    krStocksIndicatorsPromise = null;
-    return data;
-  })().catch((err) => {
-    krStocksIndicatorsPromise = null;
-    throw err;
-  });
-
-  return krStocksIndicatorsPromise;
+/** @deprecated fetchUsaStocksIndicatorsPage 사용 */
+export async function fetchUsaStocksIndicatorsCached() {
+  const page = await fetchUsaStocksIndicatorsPage();
+  return page.items;
 }
 
 /** 국내 상장 ETF 기술 지표 — 병렬 페이지 + 모듈 캐시 */
@@ -160,9 +243,14 @@ export async function fetchAssetManagementInstCached() {
   return assetManagementInstPromise;
 }
 
-/** 국내 상장 기업 기술 지표 화면 전용 preload (kr-stocks + comparison 공통코드) */
+/** 국내 상장 기업 기술 지표 화면 전용 preload (첫 페이지) */
 export function preloadKrMarketIndicatorsData() {
-  return Promise.allSettled([fetchKrStocksIndicatorsCached()]);
+  return Promise.allSettled([fetchKrStocksIndicatorsPage()]);
+}
+
+/** 미국 상장 기업 기술 지표 화면 전용 preload (첫 페이지) */
+export function preloadUsaStockIndicatorsData() {
+  return Promise.allSettled([fetchUsaStocksIndicatorsPage()]);
 }
 
 /** 국내 상장 ETF 기술 지표 화면 전용 preload */

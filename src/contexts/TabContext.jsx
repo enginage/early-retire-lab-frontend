@@ -33,15 +33,16 @@ export const TAB_LABELS = {
   // 스크리너
   'domestic-etf-indicators': '국내 상장 ETF 기술 지표',
   'kr-market-indicators': '국내 상장 기업 기술 지표',
-  'usa-market-indicators': '미국시장지표',
+  'usa-stock-indicators': '미국 상장 기업 기술 지표',
   // 종합캘린더
   'comprehensive-calendar': '종합캘린더',
+  // 절세
+  'ria-calculator': '국내시장복귀계좌(RIA)',
   // 재무상태
   'expense': '월평균지출',
   'irp-asset-indicators': '보유자산 기술지표',
   // 환경설정
   'basic': '기본설정',
-  'investment-indicators-settings': '투자지표 설정',
   'commoncode': '공통코드',
   'financial': '금융기관',
   'kr-stocks': '국내 주식',

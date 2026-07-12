@@ -34,6 +34,8 @@ function App() {
             <Route path="/target-setting" element={<Navigate to="/workspace" state={{ openTab: 'opportunity-cost' }} replace />} />
             <Route path="/simulation" element={<Navigate to="/workspace" state={{ openTab: 'opportunity-cost' }} replace />} />
             <Route path="/comprehensive-calendar" element={<Navigate to="/workspace" state={{ openTab: 'comprehensive-calendar' }} replace />} />
+            <Route path="/tax-saving" element={<Navigate to="/workspace" state={{ openTab: 'ria-calculator' }} replace />} />
+            <Route path="/ria-calculator" element={<Navigate to="/workspace" state={{ openTab: 'ria-calculator' }} replace />} />
             <Route path="/workspace" element={<Workspace />} />
             <Route path="/opportunity-cost" element={<Navigate to="/workspace" state={{ openTab: 'opportunity-cost' }} replace />} />
             <Route path="/kr-stock-summary" element={<Navigate to="/workspace" state={{ openTab: 'kr-stock-summary' }} replace />} />
@@ -55,7 +57,6 @@ function App() {
             <Route path="/expense" element={<Navigate to="/workspace" state={{ openTab: 'expense' }} replace />} />
             <Route path="/irp-asset-indicators" element={<Navigate to="/workspace" state={{ openTab: 'irp-asset-indicators' }} replace />} />
             <Route path="/basic" element={<Navigate to="/workspace" state={{ openTab: 'basic' }} replace />} />
-            <Route path="/investment-indicators-settings" element={<Navigate to="/workspace" state={{ openTab: 'investment-indicators-settings' }} replace />} />
             <Route path="/commoncode" element={<Navigate to="/workspace" state={{ openTab: 'commoncode' }} replace />} />
             <Route path="/financial" element={<Navigate to="/workspace" state={{ openTab: 'financial' }} replace />} />
             <Route path="/kr-stocks" element={<Navigate to="/workspace" state={{ openTab: 'kr-stocks' }} replace />} />
@@ -67,7 +68,7 @@ function App() {
             <Route path="/investment-indicators" element={<RedirectToWorkspace path="/investment-indicators" />} />
             <Route path="/domestic-etf-indicators" element={<Navigate to="/workspace" state={{ openTab: 'domestic-etf-indicators' }} replace />} />
             <Route path="/kr-market-indicators" element={<Navigate to="/workspace" state={{ openTab: 'kr-market-indicators' }} replace />} />
-            <Route path="/usa-market-indicators" element={<Navigate to="/workspace" state={{ openTab: 'usa-market-indicators' }} replace />} />
+            <Route path="/usa-stock-indicators" element={<Navigate to="/workspace" state={{ openTab: 'usa-stock-indicators' }} replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

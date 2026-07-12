@@ -5,7 +5,7 @@ import {
   applyClampedDecimalThresholdInput,
   applyRsiThresholdInput,
 } from './investmentIndicatorFilters';
-import { fetchKrStocksIndicatorsPage } from './investmentIndicatorsDataCache';
+import { fetchUsaStocksIndicatorsPage } from './investmentIndicatorsDataCache';
 
 const PAGE_SIZE = 30;
 
@@ -40,18 +40,6 @@ function fluctuationRateColor(v) {
   if (n > 0) return 'text-red-400';
   if (n < 0) return 'text-blue-400';
   return 'text-wealth-muted';
-}
-
-function formatMarketCap(v) {
-  if (v === null || v === undefined || v === '') return '-';
-  const n = Number(v);
-  if (Number.isNaN(n)) return '-';
-  if (n >= 1e12) {
-    const jo = Math.floor(n / 1e12);
-    const eok = Math.floor((n % 1e12) / 1e8);
-    return `${jo.toLocaleString('ko-KR')}조 ${eok.toLocaleString('ko-KR')}억`;
-  }
-  return `${(n / 1e8).toFixed(2)}억`;
 }
 
 function parseThresholdValue(raw) {
@@ -195,7 +183,7 @@ function PaginationControls({ page, total, onPageChange }) {
   );
 }
 
-export default function KrMarketIndicatorsView() {
+export default function UsaStockIndicatorsView() {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -226,7 +214,7 @@ export default function KrMarketIndicatorsView() {
   const [macdLineSignFilter, setMacdLineSignFilter] = useState('');
   const [macdSignalSignFilter, setMacdSignalSignFilter] = useState('');
   const [macdHistSignFilter, setMacdHistSignFilter] = useState('');
-  const [techSortKey, setTechSortKey] = useState('market_cap');
+  const [techSortKey, setTechSortKey] = useState('latest_volume');
   const [techSortDir, setTechSortDir] = useState('desc');
 
   const loadPage = useCallback(async () => {
@@ -234,7 +222,7 @@ export default function KrMarketIndicatorsView() {
     setError(null);
 
     try {
-      const result = await fetchKrStocksIndicatorsPage({
+      const result = await fetchUsaStocksIndicatorsPage({
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
         sortBy: techSortKey,
@@ -354,7 +342,7 @@ export default function KrMarketIndicatorsView() {
 
   return (
     <div className="max-w-[95%] mx-auto px-6 py-8">
-      <h2 className="text-xl font-semibold text-white mb-2">국내 상장 기업 기술 지표</h2>
+      <h2 className="text-xl font-semibold text-white mb-2">미국 상장 기업 기술 지표</h2>
 
       {error && (
         <div className="mb-4 p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-400">
@@ -483,7 +471,7 @@ export default function KrMarketIndicatorsView() {
               className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2 px-2 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
             />
             <p className="text-[10px] text-wealth-muted leading-snug">
-              기준값(0~150)과 비교 연산으로 필터합니다. 
+              기준값(0~150)과 비교 연산으로 필터합니다.
             </p>
           </div>
         </div>
@@ -546,26 +534,26 @@ export default function KrMarketIndicatorsView() {
 
       <div className="flex flex-wrap gap-3 mb-4 items-end">
         <div className="flex-1 min-w-[200px]">
-          <label htmlFor="kr-mkt-search" className="block text-xs text-wealth-muted mb-1">
+          <label htmlFor="usa-mkt-search" className="block text-xs text-wealth-muted mb-1">
             티커·종목명 검색
           </label>
           <input
-            id="kr-mkt-search"
+            id="usa-mkt-search"
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleSearchKeyDown}
-            placeholder="예: 삼성전자, 005930"
+            placeholder="예: Apple, AAPL"
             autoComplete="off"
             className="w-full bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2.5 px-3 text-sm placeholder:text-wealth-muted/70 focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
           />
         </div>
         <div>
-          <label htmlFor="kr-mkt-market" className="block text-xs text-wealth-muted mb-1">
+          <label htmlFor="usa-mkt-market" className="block text-xs text-wealth-muted mb-1">
             시장
           </label>
           <select
-            id="kr-mkt-market"
+            id="usa-mkt-market"
             value={market}
             onChange={(e) => {
               setMarket(e.target.value);
@@ -574,8 +562,8 @@ export default function KrMarketIndicatorsView() {
             className="bg-wealth-card text-wealth-text border border-gray-700/50 rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold/40"
           >
             <option value="">전체</option>
-            <option value="KOSPI">KOSPI</option>
-            <option value="KOSDAQ">KOSDAQ</option>
+            <option value="NYSE">NYSE</option>
+            <option value="NASDAQ">NASDAQ</option>
           </select>
         </div>
       </div>
@@ -597,7 +585,7 @@ export default function KrMarketIndicatorsView() {
                     <th className="py-2 px-3 font-medium whitespace-nowrap">티커</th>
                     <th className="py-2 px-3 font-medium">종목명</th>
                     <th className="py-2 px-3 font-medium whitespace-nowrap">시장</th>
-                    <th className="py-2 px-3 font-medium text-right whitespace-nowrap">종가</th>
+                    <th className="py-2 px-3 font-medium text-right whitespace-nowrap">종가(USD)</th>
                     <SortableMetricTh
                       label="등락률"
                       field="fluctuation_rate"
@@ -606,10 +594,9 @@ export default function KrMarketIndicatorsView() {
                       onAsc={handleTechSortAsc}
                       onDesc={handleTechSortDesc}
                     />
-                    <th className="py-2 px-3 font-medium text-right whitespace-nowrap">거래량</th>
                     <SortableMetricTh
-                      label="시가총액"
-                      field="market_cap"
+                      label="거래량"
+                      field="latest_volume"
                       sortKey={techSortKey}
                       sortDir={techSortDir}
                       onAsc={handleTechSortAsc}
@@ -676,7 +663,7 @@ export default function KrMarketIndicatorsView() {
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={14} className="py-8 text-center text-wealth-muted">
+                      <td colSpan={13} className="py-8 text-center text-wealth-muted">
                         표시할 종목이 없습니다.
                       </td>
                     </tr>
@@ -692,7 +679,7 @@ export default function KrMarketIndicatorsView() {
                         <td className="py-2 px-3 text-white break-words max-w-[220px]">{row.name}</td>
                         <td className="py-2 px-3 text-wealth-muted whitespace-nowrap">{row.market || '-'}</td>
                         <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
-                          {formatIntKO(row.latest_close)}
+                          {formatTechDecimal(row.latest_close, 2)}
                         </td>
                         <td
                           className={`py-2 px-3 text-right whitespace-nowrap tabular-nums ${fluctuationRateColor(row.fluctuation_rate)}`}
@@ -701,9 +688,6 @@ export default function KrMarketIndicatorsView() {
                         </td>
                         <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
                           {formatIntKO(row.latest_volume)}
-                        </td>
-                        <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
-                          {formatMarketCap(row.market_cap)}
                         </td>
                         <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
                           {formatTechDecimal(row.rsi18, 2)}

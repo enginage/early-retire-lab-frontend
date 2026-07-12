@@ -25,13 +25,21 @@ const ALL_MENU_ITEMS = [
     submenus: [
       { key: 'domestic-etf-indicators', label: '국내 상장 ETF 기술 지표', path: '/domestic-etf-indicators' },
       { key: 'kr-market-indicators', label: '국내 상장 기업 기술 지표', path: '/kr-market-indicators' },
-      // { key: 'usa-market-indicators', label: '미국시장지표', path: '/usa-market-indicators' },
+      { key: 'usa-stock-indicators', label: '미국 상장 기업 기술 지표', path: '/usa-stock-indicators' },
     ],
   },
   {
     key: 'comprehensive-calendar',
     label: '종합캘린더',
     path: '/comprehensive-calendar',
+  },
+  {
+    key: 'tax-saving',
+    label: '절세',
+    path: '/tax-saving',
+    submenus: [
+      { key: 'ria-calculator', label: '국내시장복귀계좌(RIA)', path: '/ria-calculator' },
+    ],
   },
   {
     key: 'financial-status',
@@ -75,7 +83,6 @@ const ALL_MENU_ITEMS = [
     path: '/settings',
     submenus: [
       { key: 'basic', label: '기본설정', path: '/settings?menu=basic' },
-      { key: 'investment-indicators-settings', label: '투자지표 설정', path: '/settings?menu=investment-indicators-settings' },
       { key: 'commoncode', label: '공통코드', path: '/settings?menu=commoncode' },
       { key: 'financial', label: '금융기관', path: '/settings?menu=financial' },
       { key: 'kr-stocks', label: '국내 주식', path: '/settings?menu=kr-stocks' },

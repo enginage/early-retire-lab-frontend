@@ -71,9 +71,6 @@ export const API_ENDPOINTS = {
   USA_ETFS_DIVIDEND: '/api/v1/usa-etfs-dividend',
   USD_KRW_EXCHANGE: '/api/v1/usd-krw-exchange',
   
-  // Indicators
-  USA_INDICATORS: '/api/v1/usa-indicators',
-  
   // Income Targets
   INCOME_TARGETS: '/api/v1/income-targets',
   

@@ -20,7 +20,6 @@ import USAHighDividendSimulation from '../pages/ExperienceLab/USAHighDividendSim
 import ExpenseManagement from '../pages/FinancialStatus/ExpenseManagement';
 import AssetIndicatorManagement from '../pages/FinancialStatus/AssetIndicatorManagement';
 import BasicSettings from '../pages/Settings/BasicSettings';
-import InvestmentIndicatorsSettings from '../pages/Settings/InvestmentIndicatorsSettings';
 import CommonCode from '../pages/Settings/CommonCode';
 import FinancialInstitution from '../pages/Settings/FinancialInstitution';
 import KRStocks from '../pages/Settings/KRStocks';
@@ -29,8 +28,9 @@ import DomesticETF from '../pages/Settings/DomesticETF';
 import USAETF from '../pages/Settings/USAETF';
 import DomesticEtfIndicatorsView from '../pages/InvestmentIndicators/DomesticEtfIndicatorsView';
 import KrMarketIndicatorsView from '../pages/InvestmentIndicators/KrMarketIndicatorsView';
-import UsaMarketIndicatorsView from '../pages/InvestmentIndicators/UsaMarketIndicatorsView';
+import UsaStockIndicatorsView from '../pages/InvestmentIndicators/UsaStockIndicatorsView';
 import ComprehensiveCalendar from '../pages/ComprehensiveCalendar';
+import RiaCalculator from '../pages/TaxSaving/RiaCalculator';
 
 const TAB_COMPONENTS = {
   'opportunity-cost': OpportunityCost,
@@ -52,7 +52,6 @@ const TAB_COMPONENTS = {
   'expense': ExpenseManagement,
   'irp-asset-indicators': AssetIndicatorManagement,
   'basic': BasicSettings,
-  'investment-indicators-settings': InvestmentIndicatorsSettings,
   'commoncode': CommonCode,
   'financial': FinancialInstitution,
   'kr-stocks': KRStocks,
@@ -61,8 +60,9 @@ const TAB_COMPONENTS = {
   'usa-etf': USAETF,
   'domestic-etf-indicators': DomesticEtfIndicatorsView,
   'kr-market-indicators': KrMarketIndicatorsView,
-  'usa-market-indicators': UsaMarketIndicatorsView,
+  'usa-stock-indicators': UsaStockIndicatorsView,
   'comprehensive-calendar': ComprehensiveCalendar,
+  'ria-calculator': RiaCalculator,
 };
 
 export default function TabbedContent() {
