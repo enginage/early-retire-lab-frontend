@@ -20,6 +20,9 @@ let etfMarketClassDetailsPromise = null;
 let etfTaxTypeDetailsCache = null;
 let etfTaxTypeDetailsPromise = null;
 
+let usaIndustryDetailsCache = null;
+let usaIndustryDetailsPromise = null;
+
 async function fetchCommonCodeMastersCached() {
   if (commonCodeMastersCache) {
     return commonCodeMastersCache;
@@ -110,6 +113,30 @@ async function fetchEtfTaxTypeDetailsCached() {
   return etfTaxTypeDetailsPromise;
 }
 
+async function fetchUsaIndustryDetailsCached() {
+  if (usaIndustryDetailsCache) {
+    return usaIndustryDetailsCache;
+  }
+  if (usaIndustryDetailsPromise) {
+    return usaIndustryDetailsPromise;
+  }
+
+  usaIndustryDetailsPromise = (async () => {
+    const rows = await fetchDetailByMasterCode(
+      'usa_industry_type',
+      'usa_industry_type'
+    );
+    usaIndustryDetailsCache = rows;
+    usaIndustryDetailsPromise = null;
+    return rows;
+  })().catch((err) => {
+    usaIndustryDetailsPromise = null;
+    throw err;
+  });
+
+  return usaIndustryDetailsPromise;
+}
+
 /** 국내 상장 ETF — 시장분류·과세유형 공통코드만 (비교 연산자 제외) */
 export async function fetchDomesticEtfFilterCommonCodesCached() {
   const [marketClassDetails, etfTaxTypeDetails] = await Promise.all([
@@ -117,6 +144,11 @@ export async function fetchDomesticEtfFilterCommonCodesCached() {
     fetchEtfTaxTypeDetailsCached(),
   ]);
   return { marketClassDetails, etfTaxTypeDetails };
+}
+
+/** 미국 상장 기업 — 업종코드(usa_industry_type) 공통상세코드 */
+export async function fetchUsaIndustryCommonCodesCached() {
+  return fetchUsaIndustryDetailsCached();
 }
 
 export function shouldApplyComparisonFilter(thresholdNum, op) {

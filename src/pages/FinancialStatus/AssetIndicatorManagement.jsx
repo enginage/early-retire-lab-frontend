@@ -19,7 +19,7 @@ const ACCOUNTS_API = getApiUrl(API_ENDPOINTS.ASSET_INDICATOR_ACCOUNTS);
 const HOLDINGS_API = getApiUrl(API_ENDPOINTS.ASSET_INDICATOR_HOLDINGS);
 const DOMESTIC_ETFS_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS);
 
-const HOLDINGS_COL_COUNT = 12;
+const HOLDINGS_COL_COUNT = 13;
 
 function fmtNum(v) {
   if (v === null || v === undefined || v === '') return '-';
@@ -630,6 +630,14 @@ export default function AssetIndicatorManagement() {
                     onDesc={handleTechSortDesc}
                   />
                   <SortableMetricTh
+                    label="등락률"
+                    field="fluctuation_rate"
+                    sortKey={techSortKey}
+                    sortDir={techSortDir}
+                    onAsc={handleTechSortAsc}
+                    onDesc={handleTechSortDesc}
+                  />
+                  <SortableMetricTh
                     label="RSI(18)"
                     field="rsi18"
                     sortKey={techSortKey}
@@ -691,13 +699,13 @@ export default function AssetIndicatorManagement() {
               <tbody>
                 {holdingsLoading && holdings.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="py-6 text-center text-wealth-muted">
+                    <td colSpan={13} className="py-6 text-center text-wealth-muted">
                       불러오는 중…
                     </td>
                   </tr>
                 ) : holdings.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="py-6 text-center text-wealth-muted">
+                    <td colSpan={13} className="py-6 text-center text-wealth-muted">
                       보유종목이 없습니다. 국내주식, 국내ETF 또는 미장주식을 추가하세요.
                     </td>
                   </tr>
@@ -731,6 +739,17 @@ export default function AssetIndicatorManagement() {
                         </td>
                         <td className="py-2 px-3 text-right tabular-nums text-white">
                           {fmtNum(h.latest_close)}
+                        </td>
+                        <td
+                          className={`py-2 px-3 text-right tabular-nums whitespace-nowrap ${
+                            h.asset_kind === 'domestic_etf'
+                              ? 'text-wealth-muted'
+                              : fluctuationRateColor(h.fluctuation_rate)
+                          }`}
+                        >
+                          {h.asset_kind === 'domestic_etf'
+                            ? '-'
+                            : fmtFluctuationRate(h.fluctuation_rate)}
                         </td>
                         <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
                           {fmtDec(h.rsi18, 2)}
@@ -773,7 +792,7 @@ export default function AssetIndicatorManagement() {
                         return (
                         <tr className="bg-wealth-card/25 border-b border-gray-800/50">
                           <td colSpan={HOLDINGS_COL_COUNT} className="px-3 py-3 pl-6 align-top">
-                            <div className="w-fit max-w-full rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden min-w-[760px]">
+                            <div className={`w-fit max-w-full rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden ${isOverseasEtf ? 'min-w-[900px]' : 'min-w-[760px]'}`}>
                               {pdfState.status === 'loading' && (
                                 <p className="text-sm text-wealth-muted px-3 py-4">불러오는 중…</p>
                               )}
@@ -789,11 +808,16 @@ export default function AssetIndicatorManagement() {
                               )}
                               {pdfState.status === 'done' && pdfItems.length > 0 && (
                                 <div className="w-fit max-w-full overflow-x-auto">
-                                  <table className="text-xs sm:text-sm border-collapse max-w-full min-w-[760px]">
+                                  <table className={`text-xs sm:text-sm border-collapse max-w-full ${isOverseasEtf ? 'min-w-[900px]' : 'min-w-[760px]'}`}>
                                     <thead>
                                       <tr className="border-b border-gray-700/60 text-left bg-wealth-card/30">
                                         <th className="py-2 px-3 font-medium text-wealth-muted">티커</th>
                                         <th className="py-2 px-3 font-medium text-wealth-muted">종목명</th>
+                                        {isOverseasEtf && (
+                                          <th className="py-2 px-3 font-medium text-wealth-muted whitespace-nowrap">
+                                            업종명
+                                          </th>
+                                        )}
                                         <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">
                                           종가
                                         </th>
@@ -825,6 +849,14 @@ export default function AssetIndicatorManagement() {
                                           >
                                             {p.stock_name || '-'}
                                           </td>
+                                          {isOverseasEtf && (
+                                            <td
+                                              className="py-1.5 px-3 text-wealth-muted min-w-[8rem] max-w-[10rem] truncate"
+                                              title={p.stock_industry_name}
+                                            >
+                                              {p.stock_industry_name || '-'}
+                                            </td>
+                                          )}
                                           <td className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap">
                                             {isOverseasEtf
                                               ? fmtDec(p.stock_latest_close, 2)

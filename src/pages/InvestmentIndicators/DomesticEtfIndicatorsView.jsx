@@ -947,6 +947,8 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
   /** 편입 7열 테이블 — 본문 폭에 맞춤(상위는 w-fit 로 테이블에 맞춤) */
   const pdfPortfolioTableClass =
     'text-xs sm:text-sm border-collapse min-w-[760px] max-w-full';
+  const pdfPortfolioTableClassOverseas =
+    'text-xs sm:text-sm border-collapse min-w-[900px] max-w-full';
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-700/50 bg-wealth-card/30">
       <table className="w-full text-sm border-collapse min-w-[1340px]">
@@ -1037,7 +1039,7 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
                 return (
                 <tr className="bg-wealth-card/25 border-b border-gray-700/40">
                   <td colSpan={colCount} className="px-3 py-3 pl-6 align-top">
-                    <div className="w-fit max-w-full rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden min-w-[760px]">
+                    <div className={`w-fit max-w-full rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden ${isOverseasEtf ? 'min-w-[900px]' : 'min-w-[760px]'}`}>
                       {pdfState.status === 'loading' && (
                         <p className="text-sm text-wealth-muted px-3 py-4">불러오는 중…</p>
                       )}
@@ -1051,7 +1053,7 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
                       )}
                       {pdfState.status === 'done' && pdfItems.length > 0 && (
                         <div className="w-fit max-w-full overflow-x-auto">
-                          <table className={pdfPortfolioTableClass}>
+                          <table className={isOverseasEtf ? pdfPortfolioTableClassOverseas : pdfPortfolioTableClass}>
                             <thead>
                               <tr className="border-b border-gray-700/60 text-left bg-wealth-card/30">
                                 <th className="py-2 px-3 font-medium text-wealth-muted">
@@ -1060,6 +1062,11 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
                                 <th className="py-2 px-3 font-medium text-wealth-muted">
                                   종목명
                                 </th>
+                                {isOverseasEtf && (
+                                  <th className="py-2 px-3 font-medium text-wealth-muted whitespace-nowrap">
+                                    업종명
+                                  </th>
+                                )}
                                 <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">
                                   종가
                                 </th>
@@ -1089,6 +1096,14 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
                                   >
                                     {p.stock_name || '-'}
                                   </td>
+                                  {isOverseasEtf && (
+                                    <td
+                                      className="py-1.5 px-3 text-wealth-muted min-w-[8rem] max-w-[10rem] truncate"
+                                      title={p.stock_industry_name}
+                                    >
+                                      {p.stock_industry_name || '-'}
+                                    </td>
+                                  )}
                                   <td
                                     className="py-1.5 px-3 text-right tabular-nums text-wealth-muted whitespace-nowrap"
                                   >

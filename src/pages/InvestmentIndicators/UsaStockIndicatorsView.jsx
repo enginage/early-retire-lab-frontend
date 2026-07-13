@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   COMPARISON_OPERATORS,
   DEFAULT_COMPARISON_OP,
   applyClampedDecimalThresholdInput,
   applyRsiThresholdInput,
+  fetchUsaIndustryCommonCodesCached,
 } from './investmentIndicatorFilters';
 import { fetchUsaStocksIndicatorsPage } from './investmentIndicatorsDataCache';
 
@@ -216,6 +217,41 @@ export default function UsaStockIndicatorsView() {
   const [macdHistSignFilter, setMacdHistSignFilter] = useState('');
   const [techSortKey, setTechSortKey] = useState('latest_volume');
   const [techSortDir, setTechSortDir] = useState('desc');
+  const [industryDetails, setIndustryDetails] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchUsaIndustryCommonCodesCached()
+      .then((rows) => {
+        if (!cancelled) setIndustryDetails(Array.isArray(rows) ? rows : []);
+      })
+      .catch((err) => {
+        console.error(err);
+        if (!cancelled) setIndustryDetails([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const industryNameByCode = useMemo(() => {
+    const m = new Map();
+    for (const opt of industryDetails) {
+      const code = String(opt.detail_code ?? '').trim();
+      if (!code) continue;
+      m.set(code, String(opt.detail_code_name ?? '').trim() || code);
+    }
+    return m;
+  }, [industryDetails]);
+
+  const resolveIndustryName = useCallback(
+    (code) => {
+      const key = String(code ?? '').trim();
+      if (!key) return '-';
+      return industryNameByCode.get(key) || key;
+    },
+    [industryNameByCode]
+  );
 
   const loadPage = useCallback(async () => {
     setLoading(true);
@@ -584,6 +620,7 @@ export default function UsaStockIndicatorsView() {
                   <tr className="border-b border-gray-700 text-left text-wealth-muted bg-wealth-card/95 backdrop-blur">
                     <th className="py-2 px-3 font-medium whitespace-nowrap">티커</th>
                     <th className="py-2 px-3 font-medium">종목명</th>
+                    <th className="py-2 px-3 font-medium whitespace-nowrap">업종</th>
                     <th className="py-2 px-3 font-medium whitespace-nowrap">시장</th>
                     <th className="py-2 px-3 font-medium text-right whitespace-nowrap">종가(USD)</th>
                     <SortableMetricTh
@@ -663,7 +700,7 @@ export default function UsaStockIndicatorsView() {
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={13} className="py-8 text-center text-wealth-muted">
+                      <td colSpan={14} className="py-8 text-center text-wealth-muted">
                         표시할 종목이 없습니다.
                       </td>
                     </tr>
@@ -677,6 +714,9 @@ export default function UsaStockIndicatorsView() {
                           {row.ticker}
                         </td>
                         <td className="py-2 px-3 text-white break-words max-w-[220px]">{row.name}</td>
+                        <td className="py-2 px-3 text-wealth-muted whitespace-nowrap">
+                          {resolveIndustryName(row.usa_industry_type)}
+                        </td>
                         <td className="py-2 px-3 text-wealth-muted whitespace-nowrap">{row.market || '-'}</td>
                         <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
                           {formatTechDecimal(row.latest_close, 2)}
