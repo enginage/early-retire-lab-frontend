@@ -3,9 +3,15 @@ import { getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
 const KR_STOCKS_URL = getStocksRestApiUrl(API_ENDPOINTS.KR_STOCKS);
 const USA_STOCKS_URL = getStocksRestApiUrl(API_ENDPOINTS.USA_STOCKS);
 const DOMESTIC_ETFS_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS);
+const DOMESTIC_ETFS_DAILY_CHART_URL = getStocksRestApiUrl(
+  API_ENDPOINTS.DOMESTIC_ETFS_DAILY_CHART
+);
 const ASSET_MANAGEMENT_INST_URL = getStocksRestApiUrl(
   API_ENDPOINTS.ASSET_MANAGEMENT_INSTITUTIONS
 );
+
+/** RestAPI domestic_etfs_daily_chart.HIGH_DIVIDEND_SIM_REFERENCE_ETF_ID */
+const DOMESTIC_ETF_REFERENCE_ETF_ID = 634;
 
 const KR_STOCKS_PAGE_SIZE = 1000;
 const USA_STOCKS_PAGE_SIZE = 1000;
@@ -18,6 +24,9 @@ const USA_STOCKS_INDICATORS_PAGE_SIZE = 30;
 
 let domesticEtfsIndicatorsCache = null;
 let domesticEtfsIndicatorsPromise = null;
+
+let domesticEtfReferenceDateCache = null;
+let domesticEtfReferenceDatePromise = null;
 
 let assetManagementInstCache = null;
 let assetManagementInstPromise = null;
@@ -218,6 +227,34 @@ export async function fetchDomesticEtfsIndicatorsCached() {
   return domesticEtfsIndicatorsPromise;
 }
 
+/** 국내 ETF 기술 지표 기준일 — 참조 ETF 최신 일봉 date */
+export async function fetchDomesticEtfReferenceDateCached() {
+  if (domesticEtfReferenceDateCache) {
+    return domesticEtfReferenceDateCache;
+  }
+  if (domesticEtfReferenceDatePromise) {
+    return domesticEtfReferenceDatePromise;
+  }
+
+  domesticEtfReferenceDatePromise = (async () => {
+    const res = await fetch(
+      `${DOMESTIC_ETFS_DAILY_CHART_URL}/etf/${DOMESTIC_ETF_REFERENCE_ETF_ID}/latest`
+    );
+    if (!res.ok) {
+      throw new Error(`기준일 조회 실패: ${res.status}`);
+    }
+    const data = await res.json();
+    domesticEtfReferenceDateCache = data?.date ?? null;
+    domesticEtfReferenceDatePromise = null;
+    return domesticEtfReferenceDateCache;
+  })().catch((err) => {
+    domesticEtfReferenceDatePromise = null;
+    throw err;
+  });
+
+  return domesticEtfReferenceDatePromise;
+}
+
 /** domestic_etfs.asset_manager 필터용 자산운용사 목록 */
 export async function fetchAssetManagementInstCached() {
   if (assetManagementInstCache) {
@@ -258,5 +295,6 @@ export function preloadDomesticEtfIndicatorsData() {
   return Promise.allSettled([
     fetchDomesticEtfsIndicatorsCached(),
     fetchAssetManagementInstCached(),
+    fetchDomesticEtfReferenceDateCached(),
   ]);
 }

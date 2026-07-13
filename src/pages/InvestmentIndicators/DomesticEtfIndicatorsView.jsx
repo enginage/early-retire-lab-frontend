@@ -20,6 +20,7 @@ import {
 import {
   fetchDomesticEtfsIndicatorsCached,
   fetchAssetManagementInstCached,
+  fetchDomesticEtfReferenceDateCached,
 } from './investmentIndicatorsDataCache';
 
 const DOMESTIC_ETFS_URL = getStocksRestApiUrl(API_ENDPOINTS.DOMESTIC_ETFS);
@@ -119,6 +120,7 @@ function filterGroupsByLabel(groups, query) {
 
 export default function DomesticEtfIndicatorsView() {
   const [etfs, setEtfs] = useState([]);
+  const [referenceDate, setReferenceDate] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [assetInstitutions, setAssetInstitutions] = useState([]);
@@ -157,10 +159,12 @@ export default function DomesticEtfIndicatorsView() {
     setAssetInstError(null);
     setEtfFilterLoadError(null);
 
-    const [etfsResult, assetsResult, commonCodeResult] = await Promise.allSettled([
+    const [etfsResult, assetsResult, commonCodeResult, referenceDateResult] =
+      await Promise.allSettled([
       fetchDomesticEtfsIndicatorsCached(),
       fetchAssetManagementInstCached(),
       fetchDomesticEtfFilterCommonCodesCached(),
+      fetchDomesticEtfReferenceDateCached(),
     ]);
 
     if (etfsResult.status === 'fulfilled') {
@@ -197,6 +201,13 @@ export default function DomesticEtfIndicatorsView() {
         commonCodeResult.reason?.message ||
           '시장분류 / 과세유형 목록을 불러오지 못했습니다.'
       );
+    }
+
+    if (referenceDateResult.status === 'fulfilled') {
+      setReferenceDate(referenceDateResult.value);
+    } else {
+      console.error(referenceDateResult.reason);
+      setReferenceDate(null);
     }
 
     setLoading(false);
@@ -754,17 +765,32 @@ export default function DomesticEtfIndicatorsView() {
                 />
               </div>
             </div>
-            {groups.length > 0 && (
-              <p className="text-xs text-wealth-muted">
-                그룹{' '}
-                <span className="text-wealth-gold tabular-nums">{filteredGroups.length}</span>
-                {groupFilter.trim() ? (
-                  <>
-                    {' '}
-                    / 전체 <span className="text-wealth-muted tabular-nums">{groups.length}</span>
-                  </>
+            {(groups.length > 0 || referenceDate) && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {groups.length > 0 ? (
+                  <p className="text-xs text-wealth-muted">
+                    그룹{' '}
+                    <span className="text-wealth-gold tabular-nums">
+                      {filteredGroups.length}
+                    </span>
+                    {groupFilter.trim() ? (
+                      <>
+                        {' '}
+                        / 전체{' '}
+                        <span className="text-wealth-muted tabular-nums">
+                          {groups.length}
+                        </span>
+                      </>
+                    ) : null}
+                  </p>
                 ) : null}
-              </p>
+                {referenceDate ? (
+                  <span className="text-sm text-wealth-muted tabular-nums ml-auto">
+                    기준일 :{' '}
+                    {new Date(referenceDate).toLocaleDateString('ko-KR')}
+                  </span>
+                ) : null}
+              </div>
             )}
           </div>
           <div className="space-y-1 flex-1 min-h-0 overflow-y-auto pr-1">

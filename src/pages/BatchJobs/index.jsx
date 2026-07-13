@@ -45,6 +45,7 @@ function BatchJobs() {
   const [chartTableResult, setChartTableResult] = useState(null);
   const [pdfPortfolioMarketOptions, setPdfPortfolioMarketOptions] = useState([]);
   const [pdfPortfolioMarketClass, setPdfPortfolioMarketClass] = useState('');
+  const [pdfPortfolioTicker, setPdfPortfolioTicker] = useState('');
   const [pdfPortfolioLoading, setPdfPortfolioLoading] = useState(false);
   const [pdfPortfolioError, setPdfPortfolioError] = useState(null);
   const [pdfPortfolioResult, setPdfPortfolioResult] = useState(null);
@@ -231,18 +232,22 @@ function BatchJobs() {
   };
 
   const handleRunDomesticEtfsPdfPortfolio = async () => {
-    if (!pdfPortfolioMarketClass.trim()) {
-      setPdfPortfolioError('시장분류를 선택해주세요.');
+    const ticker = pdfPortfolioTicker.trim().toUpperCase();
+    if (!ticker && !pdfPortfolioMarketClass.trim()) {
+      setPdfPortfolioError('시장분류를 선택하거나 티커를 입력해주세요.');
       return;
     }
     setPdfPortfolioLoading(true);
     setPdfPortfolioError(null);
     setPdfPortfolioResult(null);
     try {
+      const payload = ticker
+        ? { ticker }
+        : { market_class: pdfPortfolioMarketClass };
       const res = await fetch(`${BATCH_JOBS_API}/domestic-etfs-pdf-portfolio/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ market_class: pdfPortfolioMarketClass }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -524,7 +529,7 @@ function BatchJobs() {
           <p className="text-wealth-muted text-sm mb-4">
             pykrx <code className="text-xs bg-black/30 px-1 rounded">get_etf_portfolio_deposit_file</code> 결과를{' '}
             <code className="text-xs bg-black/30 px-1 rounded">stock.domestic_etfs_pdf</code>에 저장합니다.
-            시장분류별로 해당 ETF만 적재합니다.
+            시장분류별로 해당 ETF를 적재하거나, 티커를 입력하면 해당 종목만 적재합니다.
           </p>
           <div className="mb-4">
             <p className="text-sm text-wealth-muted mb-2">시장분류</p>
@@ -555,15 +560,34 @@ function BatchJobs() {
             </div>
           </div>
           <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-wealth-muted text-xs mb-1">티커 (선택)</label>
+              <input
+                type="text"
+                value={pdfPortfolioTicker}
+                onChange={(e) => setPdfPortfolioTicker(e.target.value.toUpperCase())}
+                placeholder="예: 0098F0"
+                autoComplete="off"
+                className="px-3 py-2 bg-wealth-card border border-gray-700 rounded-lg text-white text-sm w-28 focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+              />
+            </div>
             <button
               type="button"
               onClick={handleRunDomesticEtfsPdfPortfolio}
-              disabled={pdfPortfolioLoading || !pdfPortfolioMarketClass.trim()}
+              disabled={
+                pdfPortfolioLoading
+                || (!pdfPortfolioTicker.trim() && !pdfPortfolioMarketClass.trim())
+              }
               className="px-4 py-2 bg-wealth-gold hover:bg-yellow-600 text-wealth-dark font-medium rounded-lg transition-colors disabled:opacity-50"
             >
               {pdfPortfolioLoading ? '실행 중...' : '실행'}
             </button>
           </div>
+          {pdfPortfolioTicker.trim() && (
+            <p className="mt-2 text-xs text-wealth-muted">
+              티커가 입력되면 시장분류 선택 없이 해당 ETF만 적재합니다.
+            </p>
+          )}
           {pdfPortfolioError && (
             <div className="mt-4 bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400 text-sm">
               {pdfPortfolioError}
@@ -571,7 +595,10 @@ function BatchJobs() {
           )}
           {pdfPortfolioResult && (
             <div className="mt-4 bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm">
-              {pdfPortfolioResult.message} (시장분류: {pdfPortfolioResult.market_class})
+              {pdfPortfolioResult.message}
+              {pdfPortfolioResult.ticker
+                ? ` (티커: ${pdfPortfolioResult.ticker})`
+                : ` (시장분류: ${pdfPortfolioResult.market_class})`}
             </div>
           )}
         </div>
