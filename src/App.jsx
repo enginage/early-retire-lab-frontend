@@ -15,6 +15,7 @@ import Login from './pages/Auth/Login';
 import SignUp from './pages/Auth/SignUp';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import ResetPassword from './pages/Auth/ResetPassword';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import { ensureKRStockCache } from './components/KRStockSelector';
 import { ensureLatestDailyChartCache } from './utils/latestDailyChartCache';
 
@@ -75,6 +76,7 @@ function App() {
             <Route path="/domestic-etf-indicators" element={<DomesticEtfIndicatorsPage />} />
             <Route path="/kr-market-indicators" element={<KrMarketIndicatorsPage />} />
             <Route path="/usa-stock-indicators" element={<UsaStockIndicatorsPage />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

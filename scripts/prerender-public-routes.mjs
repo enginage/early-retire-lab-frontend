@@ -23,6 +23,7 @@ const PRERENDER_ROUTE_SEO_KEY = {
   '/domestic-etf-indicators': 'domestic-etf-indicators',
   '/kr-market-indicators': 'kr-market-indicators',
   '/usa-stock-indicators': 'usa-stock-indicators',
+  '/privacy': 'privacy',
 };
 
 const MIME = {

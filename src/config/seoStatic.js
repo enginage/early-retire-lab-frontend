@@ -11,6 +11,7 @@ export const SITEMAP_PAGE_KEYS = [
   'domestic-etf-indicators',
   'kr-market-indicators',
   'usa-stock-indicators',
+  'privacy',
 ];
 
 /** prerender 대상 (쿼리스트링 없는 공개 URL — Vercel SPA에서 정적 HTML로 서빙 가능) */
@@ -21,6 +22,7 @@ export const PRERENDER_PATHS = [
   '/domestic-etf-indicators',
   '/kr-market-indicators',
   '/usa-stock-indicators',
+  '/privacy',
 ];
 
 /** 크롤링 차단 경로 (비공개·인증·내부 워크스페이스) */

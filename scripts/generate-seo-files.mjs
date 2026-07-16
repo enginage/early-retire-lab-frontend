@@ -21,6 +21,7 @@ const SITEMAP_PATH_BY_KEY = {
   'domestic-etf-indicators': '/domestic-etf-indicators',
   'kr-market-indicators': '/kr-market-indicators',
   'usa-stock-indicators': '/usa-stock-indicators',
+  privacy: '/privacy',
 };
 
 function loadDotEnv() {

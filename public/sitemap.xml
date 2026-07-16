@@ -1,50 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://enginage.github.io/early-retire-lab-frontend/</loc>
-    <lastmod>2026-07-14</lastmod>
+    <loc>https://stockturing.kr/</loc>
+    <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://enginage.github.io/early-retire-lab-frontend/experience-lab</loc>
-    <lastmod>2026-07-14</lastmod>
+    <loc>https://stockturing.kr/experience-lab</loc>
+    <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://enginage.github.io/early-retire-lab-frontend/investment-indicators</loc>
-    <lastmod>2026-07-14</lastmod>
+    <loc>https://stockturing.kr/investment-indicators</loc>
+    <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://enginage.github.io/early-retire-lab-frontend/experience-lab?menu=early-retirement</loc>
-    <lastmod>2026-07-14</lastmod>
+    <loc>https://stockturing.kr/experience-lab?menu=early-retirement</loc>
+    <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://enginage.github.io/early-retire-lab-frontend/experience-lab?menu=domestic-high-dividend</loc>
-    <lastmod>2026-07-14</lastmod>
+    <loc>https://stockturing.kr/experience-lab?menu=domestic-high-dividend</loc>
+    <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://enginage.github.io/early-retire-lab-frontend/domestic-etf-indicators</loc>
-    <lastmod>2026-07-14</lastmod>
+    <loc>https://stockturing.kr/domestic-etf-indicators</loc>
+    <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://enginage.github.io/early-retire-lab-frontend/kr-market-indicators</loc>
-    <lastmod>2026-07-14</lastmod>
+    <loc>https://stockturing.kr/kr-market-indicators</loc>
+    <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://enginage.github.io/early-retire-lab-frontend/usa-stock-indicators</loc>
-    <lastmod>2026-07-14</lastmod>
+    <loc>https://stockturing.kr/usa-stock-indicators</loc>
+    <lastmod>2026-07-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://stockturing.kr/privacy</loc>
+    <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>

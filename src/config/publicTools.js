@@ -61,6 +61,12 @@ export const PAGE_SEO = {
       '미국 상장 주식의 RSI, MACD 등 기술 지표를 조건별로 검색·필터링합니다.',
     path: '/usa-stock-indicators',
   },
+  privacy: {
+    title: '개인정보처리방침',
+    description:
+      '조기은퇴주식연구소(stockturing.kr)의 개인정보 수집·이용, Google AdSense 광고, Supabase 인증 관련 처리 방침입니다.',
+    path: '/privacy',
+  },
 };
 
 export const SCREENER_PATHS = new Set([

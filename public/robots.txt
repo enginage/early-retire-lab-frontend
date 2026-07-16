@@ -38,4 +38,4 @@ Disallow: /signup
 Disallow: /forgot-password
 Disallow: /reset-password
 
-Sitemap: https://enginage.github.io/early-retire-lab-frontend/sitemap.xml
+Sitemap: https://stockturing.kr/sitemap.xml
