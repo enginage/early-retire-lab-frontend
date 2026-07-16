@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTabs, isTabMenuKey } from '../contexts/TabContext';
+import { isPublicToolKey, matchSubmenuActive, getParentMenuKeyForPath } from '../config/publicTools';
 
 /** `all`: 전체 메뉴 · `public`: 실험실(Experience Lab)만 — Vite 빌드 시점에 고정 (로컬 .env.local / Vercel 환경변수) */
 const MENU_MODE = import.meta.env.VITE_MENU_MODE || 'all';
@@ -116,6 +117,26 @@ const TopNav = () => {
 
   const menuItems = NAV_MENU_ITEMS;
 
+  const getIsSubmenuActive = (submenu) => {
+    const activeTab = tabs.find((t) => t.id === activeTabId);
+    if (isTabMenuKey(submenu.key) && !isPublicToolKey(submenu.key)) {
+      return location.pathname === '/workspace' && activeTab?.key === submenu.key;
+    }
+    return matchSubmenuActive(location, submenu);
+  };
+
+  const isMenuItemActive = (item) => {
+    if (item.submenus?.some((s) => getIsSubmenuActive(s))) return true;
+    const activeTab = tabs.find((t) => t.id === activeTabId);
+    if (location.pathname === '/workspace' && item.submenus?.some((s) => s.key === activeTab?.key)) {
+      return true;
+    }
+    return isActive(item.path.split('?')[0]);
+  };
+
+  const useWorkspaceTabNav = (submenu) =>
+    isTabMenuKey(submenu.key) && !isPublicToolKey(submenu.key);
+
   const isActive = (path) => {
     if (path === '/') {
       return location.pathname === '/';
@@ -203,6 +224,10 @@ const TopNav = () => {
         }
         return menuItems.find((item) => item.key === 'target-setting');
       }
+      const parentKey = getParentMenuKeyForPath(location.pathname);
+      if (parentKey) {
+        return menuItems.find((item) => item.key === parentKey);
+      }
       const pathToMenu = {
         '/experience-lab': 'experience-lab',
         '/financial-status': 'financial-status',
@@ -220,14 +245,7 @@ const TopNav = () => {
     };
     const activeMenu = findActiveMenu();
     if (activeMenu && activeMenu.submenus && activeMenu.submenus.length > 0) {
-      const activeTab = tabs.find((t) => t.id === activeTabId);
-      const hasActiveSubmenu = activeMenu.submenus.some(
-        (submenu) =>
-          (isTabMenuKey(submenu.key) && location.pathname === '/workspace' && activeTab?.key === submenu.key) ||
-          location.pathname === submenu.path ||
-          (location.pathname === activeMenu.path &&
-            new URLSearchParams(location.search).get('menu') === submenu.key)
-      );
+      const hasActiveSubmenu = activeMenu.submenus.some((submenu) => getIsSubmenuActive(submenu));
       if (!hasActiveSubmenu) {
         setOpenDropdown(activeMenu.key);
       } else {
@@ -248,11 +266,7 @@ const TopNav = () => {
       return null;
     }
 
-    const activeTab = tabs.find((t) => t.id === activeTabId);
-    const isItemActive =
-      item.submenus?.some((s) => s.key === activeTab?.key)
-        ? location.pathname === '/workspace' || location.pathname.startsWith(item.path)
-        : isActive(item.path);
+    const isItemActive = isMenuItemActive(item);
     const isOpen = openDropdown === item.key;
 
     return (
@@ -288,16 +302,9 @@ const TopNav = () => {
         {isOpen && (
           <div className="bg-wealth-card/30 border-t border-gray-700">
             {item.submenus.map((submenu) => {
-              const isTabItem = isTabMenuKey(submenu.key);
-              const activeTab = tabs.find((t) => t.id === activeTabId);
-              const isSubmenuActive =
-                isTabItem
-                  ? location.pathname === '/workspace' && activeTab?.key === submenu.key
-                  : location.pathname === submenu.path ||
-                    (location.pathname === item.path &&
-                      new URLSearchParams(location.search).get('menu') === submenu.key);
+              const isSubmenuActive = getIsSubmenuActive(submenu);
 
-              if (isTabItem) {
+              if (useWorkspaceTabNav(submenu)) {
                 return (
                   <button
                     key={submenu.key}
@@ -375,11 +382,7 @@ const TopNav = () => {
           <nav className="hidden md:flex items-center space-x-1">
             {/* 드롭다운 메뉴들 */}
             {menuItems.map((item) => {
-              const activeTab = tabs.find((t) => t.id === activeTabId);
-              const isItemActive =
-                item.submenus?.some((s) => s.key === activeTab?.key)
-                  ? location.pathname === '/workspace' || location.pathname.startsWith(item.path)
-                  : isActive(item.path);
+              const isItemActive = isMenuItemActive(item);
               const isOpen = openDropdown === item.key;
               const hasSubmenus = item.submenus && item.submenus.length > 0;
 
@@ -423,16 +426,9 @@ const TopNav = () => {
                       {isOpen && (
                         <div className="absolute top-full left-0 mt-1 min-w-full w-auto bg-wealth-card border border-gray-700 rounded-lg shadow-xl overflow-hidden">
                           {item.submenus.map((submenu) => {
-                            const isTabItem = isTabMenuKey(submenu.key);
-                            const activeTab = tabs.find((t) => t.id === activeTabId);
-                            const isSubmenuActive =
-                              isTabItem
-                                ? location.pathname === '/workspace' && activeTab?.key === submenu.key
-                                : location.pathname === submenu.path ||
-                                  (location.pathname === item.path &&
-                                    new URLSearchParams(location.search).get('menu') === submenu.key);
+                            const isSubmenuActive = getIsSubmenuActive(submenu);
 
-                            if (isTabItem) {
+                            if (useWorkspaceTabNav(submenu)) {
                               return (
                                 <button
                                   key={submenu.key}

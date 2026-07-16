@@ -308,6 +308,45 @@ function BatchJobs() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* KRX 일일 데이터 수집기 */}
+        <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
+          <h2 className="text-lg font-bold text-white mb-4">
+            KRX 일일 데이터 수집기(거래일 3시 30분 이후 작업)
+          </h2>
+          <p className="text-wealth-muted text-sm mb-4">
+            KRX 로그인 후 일일 차트, 투자자별 거래대금, 국내 ETF 일일 차트 등을 수집합니다. 날짜(일일 차트·거래대금·ETF 일봉용)를 선택하세요.
+            수집 3단계가 모두 성공하면 국내주식·국내ETF 기술지표를 터미널에서 병렬 동기화합니다.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-wealth-muted text-xs mb-1">날짜 (일일 차트/거래대금/ETF)</label>
+              <input
+                type="date"
+                value={krxDate}
+                onChange={(e) => setKrxDate(e.target.value)}
+                className="px-3 py-2 bg-wealth-card border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleRunKrxDailyCollector}
+              disabled={krxLoading}
+              className="px-4 py-2 bg-wealth-gold hover:bg-yellow-600 text-wealth-dark font-medium rounded-lg transition-colors disabled:opacity-50"
+            >
+              {krxLoading ? '실행 중...' : '실행'}
+            </button>
+          </div>
+          {krxError && (
+            <div className="mt-4 bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400 text-sm">
+              {krxError}
+            </div>
+          )}
+          {krxResult && (
+            <div className="mt-4 bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm">
+              {krxResult.message} (날짜: {krxResult.date})
+            </div>
+          )}
+        </div>
 
         {/* 인포스탁 Daily 특징 테마 */}
         <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
@@ -353,46 +392,6 @@ function BatchJobs() {
           {infostockResult && (
             <div className="mt-4 bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm">
               {infostockResult.message} (날짜: {infostockResult.date})
-            </div>
-          )}
-        </div>
-
-        {/* KRX 일일 데이터 수집기 */}
-        <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
-          <h2 className="text-lg font-bold text-white mb-4">
-            KRX 일일 데이터 수집기(거래일 3시 30분 이후 작업)
-          </h2>
-          <p className="text-wealth-muted text-sm mb-4">
-            KRX 로그인 후 일일 차트, 투자자별 거래대금, 국내 ETF 일일 차트 등을 수집합니다. 날짜(일일 차트·거래대금·ETF 일봉용)를 선택하세요.
-            수집 3단계가 모두 성공하면 국내주식·국내ETF 기술지표를 터미널에서 병렬 동기화합니다.
-          </p>
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="block text-wealth-muted text-xs mb-1">날짜 (일일 차트/거래대금/ETF)</label>
-              <input
-                type="date"
-                value={krxDate}
-                onChange={(e) => setKrxDate(e.target.value)}
-                className="px-3 py-2 bg-wealth-card border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={handleRunKrxDailyCollector}
-              disabled={krxLoading}
-              className="px-4 py-2 bg-wealth-gold hover:bg-yellow-600 text-wealth-dark font-medium rounded-lg transition-colors disabled:opacity-50"
-            >
-              {krxLoading ? '실행 중...' : '실행'}
-            </button>
-          </div>
-          {krxError && (
-            <div className="mt-4 bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400 text-sm">
-              {krxError}
-            </div>
-          )}
-          {krxResult && (
-            <div className="mt-4 bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm">
-              {krxResult.message} (날짜: {krxResult.date})
             </div>
           )}
         </div>

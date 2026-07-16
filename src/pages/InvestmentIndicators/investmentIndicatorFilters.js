@@ -223,3 +223,12 @@ export function applyClampedDecimalThresholdInput(raw, setThreshold, min, max) {
 export function applyRsiThresholdInput(raw, setThreshold) {
   applyClampedDecimalThresholdInput(raw, setThreshold, 0, 100);
 }
+
+/** ETF 편입 구성 빈 목록 안내 문구 (시장분류 표시명 기준) */
+export function getPdfPortfolioEmptyMessage(marketClassName) {
+  const name = String(marketClassName ?? '').trim();
+  if (name === '해외' || name === '국내&해외') {
+    return '보유 종목 중 미국 상장된 주식만 제공합니다.';
+  }
+  return '보유 종목이 없습니다.';
+}

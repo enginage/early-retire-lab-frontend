@@ -4,6 +4,11 @@ import { AuthProvider } from './contexts/AuthContext';
 import { TabProvider } from './contexts/TabContext';
 import Introduction from './pages/Introduction';
 import Workspace from './pages/Workspace';
+import ExperienceLab from './pages/ExperienceLab';
+import DomesticEtfIndicatorsPage from './pages/InvestmentIndicators/DomesticEtfIndicatorsPage';
+import KrMarketIndicatorsPage from './pages/InvestmentIndicators/KrMarketIndicatorsPage';
+import UsaStockIndicatorsPage from './pages/InvestmentIndicators/UsaStockIndicatorsPage';
+import InvestmentIndicatorsHub from './pages/InvestmentIndicators/InvestmentIndicatorsHub';
 import RedirectToWorkspace from './components/RedirectToWorkspace';
 import FreeLiving from './pages/FreeLiving';
 import Login from './pages/Auth/Login';
@@ -23,13 +28,14 @@ function App() {
       console.error('Failed to preload latest daily chart cache:', err);
     });
   }, []);
+
   return (
     <AuthProvider>
       <Router>
         <TabProvider>
           <Routes>
             <Route path="/" element={<Introduction />} />
-            <Route path="/experience-lab" element={<RedirectToWorkspace path="/experience-lab" />} />
+            <Route path="/experience-lab" element={<ExperienceLab />} />
             <Route path="/financial-status" element={<RedirectToWorkspace path="/financial-status" />} />
             <Route path="/target-setting" element={<Navigate to="/workspace" state={{ openTab: 'opportunity-cost' }} replace />} />
             <Route path="/simulation" element={<Navigate to="/workspace" state={{ openTab: 'opportunity-cost' }} replace />} />
@@ -51,8 +57,8 @@ function App() {
             <Route path="/stock-news-history" element={<Navigate to="/workspace" state={{ openTab: 'stock-news-history' }} replace />} />
             <Route path="/stock-disclosure-history" element={<Navigate to="/workspace" state={{ openTab: 'stock-disclosure-history' }} replace />} />
             <Route path="/batch-jobs" element={<Navigate to="/workspace" state={{ openTab: 'batch-jobs' }} replace />} />
-            <Route path="/early-retirement" element={<Navigate to="/workspace" state={{ openTab: 'early-retirement' }} replace />} />
-            <Route path="/domestic-high-dividend" element={<Navigate to="/workspace" state={{ openTab: 'domestic-high-dividend' }} replace />} />
+            <Route path="/early-retirement" element={<Navigate to="/experience-lab?menu=early-retirement" replace />} />
+            <Route path="/domestic-high-dividend" element={<Navigate to="/experience-lab?menu=domestic-high-dividend" replace />} />
             <Route path="/usa-high-dividend" element={<Navigate to="/workspace" state={{ openTab: 'usa-high-dividend' }} replace />} />
             <Route path="/expense" element={<Navigate to="/workspace" state={{ openTab: 'expense' }} replace />} />
             <Route path="/irp-asset-indicators" element={<Navigate to="/workspace" state={{ openTab: 'irp-asset-indicators' }} replace />} />
@@ -65,10 +71,10 @@ function App() {
             <Route path="/usa-etf" element={<Navigate to="/workspace" state={{ openTab: 'usa-etf' }} replace />} />
             <Route path="/free-living" element={<FreeLiving />} />
             <Route path="/settings" element={<RedirectToWorkspace path="/settings" />} />
-            <Route path="/investment-indicators" element={<RedirectToWorkspace path="/investment-indicators" />} />
-            <Route path="/domestic-etf-indicators" element={<Navigate to="/workspace" state={{ openTab: 'domestic-etf-indicators' }} replace />} />
-            <Route path="/kr-market-indicators" element={<Navigate to="/workspace" state={{ openTab: 'kr-market-indicators' }} replace />} />
-            <Route path="/usa-stock-indicators" element={<Navigate to="/workspace" state={{ openTab: 'usa-stock-indicators' }} replace />} />
+            <Route path="/investment-indicators" element={<InvestmentIndicatorsHub />} />
+            <Route path="/domestic-etf-indicators" element={<DomesticEtfIndicatorsPage />} />
+            <Route path="/kr-market-indicators" element={<KrMarketIndicatorsPage />} />
+            <Route path="/usa-stock-indicators" element={<UsaStockIndicatorsPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

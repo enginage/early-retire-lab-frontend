@@ -1,10 +1,20 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import AppLayout from '../layouts/AppLayout';
+import PageSeo from '../components/PageSeo';
+import { getPageSeo } from '../config/publicTools';
+import { PUBLIC_HUBS } from '../config/hubPages';
 
 function Introduction() {
+  const seo = getPageSeo('home');
+
   return (
     <AppLayout>
+      <PageSeo
+        title={seo.title}
+        description={seo.description}
+        canonicalPath={seo.path}
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
         {/* Hero Section */}
         <div className="text-center mb-16">
@@ -59,6 +69,49 @@ function Introduction() {
             </div>
           </section>
 
+          {/* Public Tools Section */}
+          <section className="bg-wealth-card/50 backdrop-blur-sm rounded-2xl p-8 md:p-12 border border-gray-800">
+            <h2 className="text-3xl font-bold text-white mb-3">
+              무료 투자 도구
+            </h2>
+            <p className="text-lg text-wealth-muted mb-8 leading-relaxed">
+              조기은퇴 계획부터 주식·ETF 기술 지표 검색까지, 아래 도구를 무료로 이용할 수 있습니다.
+            </p>
+            <div className="space-y-8">
+              {PUBLIC_HUBS.map((hub) => {
+                const hubSeo = getPageSeo(hub.seoKey);
+                const tools = hub.toolKeys.map((key) => ({ key, ...getPageSeo(key) }));
+                return (
+                  <div key={hub.seoKey}>
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-4">
+                      <h3 className="text-xl font-semibold text-white">{hub.navLabel}</h3>
+                      <Link
+                        to={hub.hubPath}
+                        className="text-sm text-wealth-gold hover:text-yellow-500 transition-colors"
+                      >
+                        {hubSeo.title} 전체 보기 →
+                      </Link>
+                    </div>
+                    <p className="text-wealth-muted text-sm mb-4 leading-relaxed">{hub.intro}</p>
+                    <ul className="grid gap-3 sm:grid-cols-2">
+                      {tools.map((tool) => (
+                        <li key={tool.key}>
+                          <Link
+                            to={tool.path}
+                            className="block rounded-lg border border-gray-800 bg-wealth-dark/40 px-4 py-3 hover:border-wealth-gold/30 hover:bg-wealth-card/40 transition-colors"
+                          >
+                            <span className="text-white font-medium block mb-1">{tool.title}</span>
+                            <span className="text-sm text-wealth-muted line-clamp-2">{tool.description}</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
           {/* Call to Action Section */}
           <section className="bg-wealth-card/50 backdrop-blur-sm rounded-2xl p-8 md:p-12 border border-gray-800 text-center">
             <h2 className="text-3xl font-bold text-white mb-6">
@@ -69,12 +122,20 @@ function Introduction() {
               올바른 계획과 실행을 통해 당신도 경제적 자유를 얻고, 
               진정으로 원하는 삶을 살 수 있습니다.
             </p>
-            <Link 
-              to="/experience-lab?menu=early-retirement" 
-              className="inline-block px-8 py-4 bg-gradient-to-r from-wealth-gold to-yellow-600 text-white font-semibold rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-200 shadow-lg shadow-yellow-900/30 hover:shadow-xl hover:shadow-yellow-900/40"
-            >
-              조기 은퇴 실험실
-            </Link>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link
+                to="/experience-lab?menu=early-retirement"
+                className="inline-block px-8 py-4 bg-gradient-to-r from-wealth-gold to-yellow-600 text-white font-semibold rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-200 shadow-lg shadow-yellow-900/30 hover:shadow-xl hover:shadow-yellow-900/40"
+              >
+                조기은퇴 시뮬레이션
+              </Link>
+              <Link
+                to="/experience-lab"
+                className="inline-block px-8 py-4 border border-gray-700 text-wealth-muted font-semibold rounded-lg hover:border-wealth-gold/50 hover:text-white transition-all duration-200"
+              >
+                실험실 전체 보기
+              </Link>
+            </div>
           </section>
 
           {/* Quote Section */}

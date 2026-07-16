@@ -16,6 +16,7 @@ import {
   matchesRsiValue,
   applyClampedDecimalThresholdInput,
   applyRsiThresholdInput,
+  getPdfPortfolioEmptyMessage,
 } from './investmentIndicatorFilters';
 import {
   fetchDomesticEtfsIndicatorsCached,
@@ -943,15 +944,15 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
     `py-2 pl-3 pr-2 text-wealth-gold font-mono whitespace-nowrap sticky left-0 z-10 ${tickerColW} box-border bg-wealth-card group-hover:bg-gray-800/90 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.35)]`;
   const stickyNameTd =
     'py-2 px-3 text-white sticky left-20 z-10 min-w-[12rem] max-w-[13rem] w-[13rem] box-border bg-wealth-card group-hover:bg-gray-800/90 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.35)]';
-  const colCount = 14;
+  const colCount = 15;
   /** 편입 7열 테이블 — 본문 폭에 맞춤(상위는 w-fit 로 테이블에 맞춤) */
   const pdfPortfolioTableClass =
-    'text-xs sm:text-sm border-collapse min-w-[760px] max-w-full';
+    'text-xs sm:text-sm border-collapse min-w-[860px] max-w-full';
   const pdfPortfolioTableClassOverseas =
-    'text-xs sm:text-sm border-collapse min-w-[900px] max-w-full';
+    'text-xs sm:text-sm border-collapse min-w-[1000px] max-w-full';
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-700/50 bg-wealth-card/30">
-      <table className="w-full text-sm border-collapse min-w-[1340px]">
+      <table className="w-full text-sm border-collapse min-w-[1420px]">
         <thead>
           <tr className="border-b border-gray-700 text-left bg-wealth-card/40">
             <th className={stickyTickerTh}>티커</th>
@@ -960,6 +961,7 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
             <th className="py-2 px-3 font-medium whitespace-nowrap text-wealth-muted">과세유형</th>
             <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">총보수</th>
             <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">종가</th>
+            <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">등락률</th>
             <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">거래량</th>
             <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">RSI(18)</th>
             <th className="py-2 px-3 font-medium text-right whitespace-nowrap text-wealth-muted">RSI(30)</th>
@@ -1007,6 +1009,11 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
                 <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
                   {formatIntKO(row.latest_close)}
                 </td>
+                <td
+                  className={`py-2 px-3 text-right whitespace-nowrap tabular-nums ${fluctuationRateColor(row.fluctuation_rate)}`}
+                >
+                  {formatFluctuationRate(row.fluctuation_rate)}
+                </td>
                 <td className="py-2 px-3 text-right text-wealth-muted whitespace-nowrap tabular-nums">
                   {formatIntKO(row.latest_volume)}
                 </td>
@@ -1033,13 +1040,15 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
                 </td>
               </tr>
               {openPdfEtfId === row.id && (() => {
-                const isOverseasEtf =
-                  resolveMarketClass(row.kr_etf_market_classification) === '해외';
+                const marketClassName = resolveMarketClass(
+                  row.kr_etf_market_classification
+                );
+                const isOverseasEtf = marketClassName === '해외';
                 const pdfItems = isOverseasEtf ? pdfItemsUsaMapped : pdfItemsWithName;
                 return (
                 <tr className="bg-wealth-card/25 border-b border-gray-700/40">
                   <td colSpan={colCount} className="px-3 py-3 pl-6 align-top">
-                    <div className={`w-fit max-w-full rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden ${isOverseasEtf ? 'min-w-[900px]' : 'min-w-[760px]'}`}>
+                    <div className={`w-fit max-w-full rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden ${isOverseasEtf ? 'min-w-[1000px]' : 'min-w-[860px]'}`}>
                       {pdfState.status === 'loading' && (
                         <p className="text-sm text-wealth-muted px-3 py-4">불러오는 중…</p>
                       )}
@@ -1048,7 +1057,7 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
                       )}
                       {pdfState.status === 'done' && pdfItems.length === 0 && (
                         <p className="text-sm text-wealth-muted px-3 py-4">
-                          보유 종목 중 미국 상장된 주식만 제공합니다.
+                          {getPdfPortfolioEmptyMessage(marketClassName)}
                         </p>
                       )}
                       {pdfState.status === 'done' && pdfItems.length > 0 && (
@@ -1061,6 +1070,9 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
                                 </th>
                                 <th className="py-2 px-3 font-medium text-wealth-muted">
                                   종목명
+                                </th>
+                                <th className="py-2 px-3 font-medium text-wealth-muted whitespace-nowrap">
+                                  시장구분
                                 </th>
                                 {isOverseasEtf && (
                                   <th className="py-2 px-3 font-medium text-wealth-muted whitespace-nowrap">
@@ -1095,6 +1107,9 @@ function EtfMiniGrid({ rows, marketClassNameByCode, etfTaxTypeNameByCode }) {
                                     title={p.stock_name}
                                   >
                                     {p.stock_name || '-'}
+                                  </td>
+                                  <td className="py-1.5 px-3 text-wealth-muted whitespace-nowrap">
+                                    {p.stock_market || '-'}
                                   </td>
                                   {isOverseasEtf && (
                                     <td

@@ -13,7 +13,10 @@ import KRStockSelector from '../../components/KRStockSelector';
 import DomesticETFSelector from '../../components/DomesticETFSelector';
 import USAStockSelector from '../../components/USAStockSelector';
 import { getApiUrl, getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
-import { fetchDomesticEtfFilterCommonCodesCached } from '../InvestmentIndicators/investmentIndicatorFilters';
+import {
+  fetchDomesticEtfFilterCommonCodesCached,
+  getPdfPortfolioEmptyMessage,
+} from '../InvestmentIndicators/investmentIndicatorFilters';
 
 const ACCOUNTS_API = getApiUrl(API_ENDPOINTS.ASSET_INDICATOR_ACCOUNTS);
 const HOLDINGS_API = getApiUrl(API_ENDPOINTS.ASSET_INDICATOR_HOLDINGS);
@@ -741,15 +744,9 @@ export default function AssetIndicatorManagement() {
                           {fmtNum(h.latest_close)}
                         </td>
                         <td
-                          className={`py-2 px-3 text-right tabular-nums whitespace-nowrap ${
-                            h.asset_kind === 'domestic_etf'
-                              ? 'text-wealth-muted'
-                              : fluctuationRateColor(h.fluctuation_rate)
-                          }`}
+                          className={`py-2 px-3 text-right tabular-nums whitespace-nowrap ${fluctuationRateColor(h.fluctuation_rate)}`}
                         >
-                          {h.asset_kind === 'domestic_etf'
-                            ? '-'
-                            : fmtFluctuationRate(h.fluctuation_rate)}
+                          {fmtFluctuationRate(h.fluctuation_rate)}
                         </td>
                         <td className="py-2 px-3 text-right tabular-nums text-wealth-muted">
                           {fmtDec(h.rsi18, 2)}
@@ -783,16 +780,16 @@ export default function AssetIndicatorManagement() {
                         </td>
                       </tr>
                       {h.asset_kind === 'domestic_etf' && openPdfHoldingId === h.id && (() => {
-                        const isOverseasEtf =
-                          resolveMarketClassName(
-                            h.kr_etf_market_classification,
-                            marketClassNameByCode
-                          ) === '해외';
+                        const marketClassName = resolveMarketClassName(
+                          h.kr_etf_market_classification,
+                          marketClassNameByCode
+                        );
+                        const isOverseasEtf = marketClassName === '해외';
                         const pdfItems = isOverseasEtf ? pdfItemsUsaMapped : pdfItemsWithName;
                         return (
                         <tr className="bg-wealth-card/25 border-b border-gray-800/50">
                           <td colSpan={HOLDINGS_COL_COUNT} className="px-3 py-3 pl-6 align-top">
-                            <div className={`w-fit max-w-full rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden ${isOverseasEtf ? 'min-w-[900px]' : 'min-w-[760px]'}`}>
+                            <div className={`w-fit max-w-full rounded-lg border border-gray-700/50 bg-wealth-dark/40 overflow-hidden ${isOverseasEtf ? 'min-w-[1000px]' : 'min-w-[860px]'}`}>
                               {pdfState.status === 'loading' && (
                                 <p className="text-sm text-wealth-muted px-3 py-4">불러오는 중…</p>
                               )}
@@ -801,18 +798,19 @@ export default function AssetIndicatorManagement() {
                               )}
                               {pdfState.status === 'done' && pdfItems.length === 0 && (
                                 <p className="text-sm text-wealth-muted px-3 py-4">
-                                  {isOverseasEtf
-                                    ? '보유 종목 중 미국 상장된 주식만 제공합니다.'
-                                    : '저장된 편입 구성이 없습니다.'}
+                                  {getPdfPortfolioEmptyMessage(marketClassName)}
                                 </p>
                               )}
                               {pdfState.status === 'done' && pdfItems.length > 0 && (
                                 <div className="w-fit max-w-full overflow-x-auto">
-                                  <table className={`text-xs sm:text-sm border-collapse max-w-full ${isOverseasEtf ? 'min-w-[900px]' : 'min-w-[760px]'}`}>
+                                  <table className={`text-xs sm:text-sm border-collapse max-w-full ${isOverseasEtf ? 'min-w-[1000px]' : 'min-w-[860px]'}`}>
                                     <thead>
                                       <tr className="border-b border-gray-700/60 text-left bg-wealth-card/30">
                                         <th className="py-2 px-3 font-medium text-wealth-muted">티커</th>
                                         <th className="py-2 px-3 font-medium text-wealth-muted">종목명</th>
+                                        <th className="py-2 px-3 font-medium text-wealth-muted whitespace-nowrap">
+                                          시장구분
+                                        </th>
                                         {isOverseasEtf && (
                                           <th className="py-2 px-3 font-medium text-wealth-muted whitespace-nowrap">
                                             업종명
@@ -848,6 +846,9 @@ export default function AssetIndicatorManagement() {
                                             title={p.stock_name}
                                           >
                                             {p.stock_name || '-'}
+                                          </td>
+                                          <td className="py-1.5 px-3 text-wealth-muted whitespace-nowrap">
+                                            {p.stock_market || '-'}
                                           </td>
                                           {isOverseasEtf && (
                                             <td

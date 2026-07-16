@@ -1,39 +1,30 @@
 import React from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import AppLayout from '../../layouts/AppLayout';
+import PageSeo from '../../components/PageSeo';
+import SeoContentSection from '../../components/SeoContentSection';
+import PublicToolsHub from '../../components/PublicToolsHub';
+import { getPageSeo, isPublicToolKey } from '../../config/publicTools';
+import { getPageSeoContent } from '../../config/seoPageContent';
+import { getHubBySeoKey } from '../../config/hubPages';
 import EarlyRetirementSimulation from './EarlyRetirementSimulation';
 import DomesticHighDividendSimulation from './DomesticHighDividendSimulation';
 import USAHighDividendSimulation from './USAHighDividendSimulation';
 
-const MENUS = [
-  { key: 'early-retirement', label: '조기은퇴 시뮬레이션' },
-  { key: 'domestic-high-dividend', label: '국내 고배당 ETF 시뮬레이션' },
-  { key: 'usa-high-dividend', label: '미국 고배당 ETF 시뮬레이션' },
-  // { key: 'us-dividend', label: '미장 월 배당' },
-  // { key: 'kr-dividend', label: '국장 월 배당' },
-  // { key: 'us-trading-signal', label: '미장 매매 시그널' },
-  // { key: 'kr-trading-signal', label: '국장 ETF 가이드' },
-];
+const experienceLabHub = getHubBySeoKey('experience-lab');
 
 function ExperienceLab() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const menuFromUrl = searchParams.get('menu') || 'early-retirement';
-  const [activeMenu, setActiveMenu] = React.useState(menuFromUrl);
+  const menu = searchParams.get('menu');
+  const isHubView = !menu;
 
-  React.useEffect(() => {
-    const menu = searchParams.get('menu');
-    if (!menu) {
-      navigate('/experience-lab?menu=early-retirement', { replace: true });
-    } else {
-      setActiveMenu(menu);
-    }
-  }, [searchParams, navigate]);
-
-  const handleMenuClick = (menu) => {
-    setActiveMenu(menu);
-    navigate(`/experience-lab?menu=${menu}`);
-  };
+  const activeMenu = menu || 'early-retirement';
+  const seo = isHubView
+    ? getPageSeo('experience-lab')
+    : getPageSeo(activeMenu) ?? getPageSeo('early-retirement');
+  const seoContent = !isHubView && isPublicToolKey(activeMenu)
+    ? getPageSeoContent(activeMenu)
+    : null;
 
   const renderContent = () => {
     switch (activeMenu) {
@@ -58,10 +49,28 @@ function ExperienceLab() {
 
   return (
     <AppLayout>
-      {renderContent()}
+      <PageSeo
+        title={seo.title}
+        description={seo.description}
+        canonicalPath={seo.path}
+      />
+      {isHubView ? (
+        <PublicToolsHub hub={experienceLabHub} />
+      ) : (
+        <>
+          {seoContent && (
+            <SeoContentSection
+              title={seoContent.title}
+              paragraphs={seoContent.paragraphs}
+              steps={seoContent.steps}
+              faqs={seoContent.faqs}
+            />
+          )}
+          {renderContent()}
+        </>
+      )}
     </AppLayout>
   );
 }
 
 export default ExperienceLab;
-

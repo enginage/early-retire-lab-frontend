@@ -11,6 +11,7 @@ function USAStocks() {
   const [searchQuery, setSearchQuery] = useState(''); // 검색어
   const [selectedMarket, setSelectedMarket] = useState(''); // 선택된 시장구분
   const [selectedIndustry, setSelectedIndustry] = useState(''); // 선택된 업종구분
+  const [krxIsuCdSearch, setKrxIsuCdSearch] = useState(''); // KRX_ISU_CD 검색어
   const [industryOptions, setIndustryOptions] = useState([]); // 업종 코드/명 목록
   const [industryMap, setIndustryMap] = useState({}); // 업종코드 -> 업종명
   const [editingId, setEditingId] = useState(null);
@@ -56,8 +57,16 @@ function USAStocks() {
       filtered = filtered.filter(stock => stock.usa_industry_type === selectedIndustry);
     }
 
+    // KRX_ISU_CD 필터링
+    if (krxIsuCdSearch.trim() !== '') {
+      const query = krxIsuCdSearch.toLowerCase();
+      filtered = filtered.filter(stock =>
+        (stock.krx_isu_cd || '').toLowerCase().includes(query)
+      );
+    }
+
     setStocks(filtered);
-  }, [searchQuery, selectedMarket, selectedIndustry, allStocks]);
+  }, [searchQuery, selectedMarket, selectedIndustry, krxIsuCdSearch, allStocks]);
 
   const loadStocks = async () => {
     try {
@@ -426,6 +435,18 @@ function USAStocks() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-wealth-muted mb-2">
+                KRX_ISU_CD
+              </label>
+              <input
+                type="text"
+                value={krxIsuCdSearch}
+                onChange={(e) => setKrxIsuCdSearch(e.target.value)}
+                placeholder="Search"
+                className="w-full max-w-xs px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-wealth-gold focus:border-transparent"
+              />
             </div>
           </div>
         </div>
