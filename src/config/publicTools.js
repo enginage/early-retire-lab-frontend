@@ -28,7 +28,7 @@ export const PAGE_SEO = {
   'investment-indicators': {
     title: '주식·ETF 기술 지표 스크리너',
     description:
-      '국내·미국 상장 ETF·주식의 RSI, MACD, 등락률 등 기술 지표를 조건별로 검색·비교하는 무료 스크리너 허브입니다.',
+      '국내·미국 상장 ETF·주식의 RSI, MACD, 등락률 등 기술 지표를 조건별로 검색·비교하는 스크리너 허브입니다.',
     path: '/investment-indicators',
   },
   'early-retirement': {
@@ -46,7 +46,7 @@ export const PAGE_SEO = {
   'domestic-etf-indicators': {
     title: '국내 상장 ETF 기술 지표 스크리너',
     description:
-      '국내 상장 ETF의 RSI, MACD, 등락률, 배당수익률 등 기술 지표를 필터링·비교하는 무료 스크리너입니다.',
+      '국내 상장 ETF의 RSI, MACD, 등락률 등 기술 지표를 필터링·비교하는 스크리너입니다.',
     path: '/domestic-etf-indicators',
   },
   'kr-market-indicators': {
