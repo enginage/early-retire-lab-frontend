@@ -9,8 +9,11 @@ const KR_STOCKS_MARGIN_TRADING_API = getApiUrl(API_ENDPOINTS.KR_STOCKS_MARGIN_TR
 const FOLLOW_UP_STOCKS_API = getApiUrl('/api/v1/follow-up-stocks');
 const KR_STOCKS_TRADING_VALUE_API = getApiUrl(API_ENDPOINTS.KR_STOCKS_TRADING_VALUE);
 const KR_STOCKS_DAILY_CHART_API = getApiUrl(API_ENDPOINTS.KR_STOCKS_DAILY_CHART);
+const KR_STOCKS_WEB_NEWS_API = getApiUrl(API_ENDPOINTS.KR_STOCKS_WEB_NEWS);
 const RELATED_STOCKS_API = getApiUrl('/api/v1/related-stocks');
 const INDUSTRY_MAPS_API = getApiUrl(API_ENDPOINTS.INDUSTRY_MAPS);
+
+const formatEokNumber = (value) => `${parseFloat(Number(value).toFixed(2))}억`;
 
 function KRStockSummary() {
   const [ticker, setTicker] = useState('');
@@ -28,6 +31,9 @@ function KRStockSummary() {
   const [error, setError] = useState(null);
   const [marginTradingLoading, setMarginTradingLoading] = useState(false);
   const [marginTradingMessage, setMarginTradingMessage] = useState(null);
+  const [webNews, setWebNews] = useState(null);
+  const [webNewsLoading, setWebNewsLoading] = useState(false);
+  const [webNewsError, setWebNewsError] = useState(null);
 
   const handleSearch = async () => {
     if (!ticker.trim()) {
@@ -48,6 +54,9 @@ function KRStockSummary() {
     setRelatedStockGroups([]);
     setIndustryMapPaths([]);
     setMarginTradingMessage(null);
+    setWebNews(null);
+    setWebNewsLoading(false);
+    setWebNewsError(null);
 
     try {
       // 티커로 주식 정보 조회
@@ -110,6 +119,28 @@ function KRStockSummary() {
         }
       } catch (tradingErr) {
         console.error('투자자별 거래대금 로드 실패:', tradingErr);
+      }
+
+      // DB 저장 뉴스 요약 조회
+      setWebNewsLoading(true);
+      try {
+        const newsResponse = await fetch(
+          `${KR_STOCKS_WEB_NEWS_API}/${selectedStock.id}/web-news?limit=8`
+        );
+        if (newsResponse.ok) {
+          const newsData = await newsResponse.json();
+          setWebNews(newsData);
+          setWebNewsError(null);
+        } else {
+          setWebNews(null);
+          setWebNewsError('뉴스를 불러오는데 실패했습니다.');
+        }
+      } catch (newsErr) {
+        console.error('최신 뉴스 로드 실패:', newsErr);
+        setWebNews(null);
+        setWebNewsError('뉴스를 불러오는데 실패했습니다.');
+      } finally {
+        setWebNewsLoading(false);
       }
 
       // 해당 주식이 속한 테마 조회 (stock_id 중심 - 전체 테마 loop 없이)
@@ -262,7 +293,7 @@ function KRStockSummary() {
       const eok = Math.floor(absBillion % 10000);
       return `${jo.toLocaleString('ko-KR')}조 ${eok.toLocaleString('ko-KR')}억`;
     }
-    return `${absBillion.toFixed(2)}억`;
+    return formatEokNumber(absBillion);
   };
 
   const formatTradingValueBillion = (value) => {
@@ -273,7 +304,7 @@ function KRStockSummary() {
     const formatted = formatEokDisplay(absBillion);
     if (numValue > 0) return `+${formatted}`;
     if (numValue < 0) return `-${formatted}`;
-    return '0.00억';
+    return formatEokNumber(0);
   };
 
   const getTradingValueColor = (value) => {
@@ -343,7 +374,7 @@ function KRStockSummary() {
                             const eok = Math.floor((v % 1e12) / 1e8);
                             return `${jo.toLocaleString('ko-KR')}조 ${eok.toLocaleString('ko-KR')}억`;
                           }
-                          return `${(v / 1e8).toFixed(2)}억`;
+                          return formatEokNumber(v / 1e8);
                         })()
                       : '-'}
                   </p>
@@ -501,6 +532,22 @@ function KRStockSummary() {
                   </tbody>
                 </table>
               </div>
+            )}
+          </div>
+
+          {/* 최신 뉴스 */}
+          <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
+            <h2 className="text-2xl font-bold text-white mb-4">최신 뉴스</h2>
+            {webNewsLoading ? (
+              <p className="text-wealth-muted">뉴스 요약 불러오는 중...</p>
+            ) : webNewsError ? (
+              <p className="text-red-400">{webNewsError}</p>
+            ) : webNews?.summary ? (
+              <p className="text-white whitespace-pre-wrap leading-relaxed">{webNews.summary}</p>
+            ) : webNews?.summary_error ? (
+              <p className="text-red-400">{webNews.summary_error}</p>
+            ) : (
+              <p className="text-wealth-muted">저장된 뉴스 요약이 없습니다.</p>
             )}
           </div>
 

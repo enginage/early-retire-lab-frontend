@@ -91,6 +91,7 @@ export const API_ENDPOINTS = {
   
   // KR Stocks (국내 상장 기업 기술 지표 등은 Stocks RestAPI + getStocksRestApiUrl, 환경설정 CRUD는 기본 API)
   KR_STOCKS: '/api/v1/kr-stocks',
+  KR_STOCKS_WEB_NEWS: '/api/v1/kr-stocks/stock',
 
   // KR Stocks Trading Value (투자자별 거래대금)
   KR_STOCKS_TRADING_VALUE: '/api/v1/kr-stocks-trading-value',
@@ -126,5 +127,8 @@ export const API_ENDPOINTS = {
 
   // Batch Jobs (배치 작업)
   BATCH_JOBS: '/api/v1/batch-jobs',
+
+  // Batch final date management (배치 최종일자)
+  BATCH_FINAL_DATE_MANAGEMENT: '/api/v1/batch-final-date-management',
 };
 

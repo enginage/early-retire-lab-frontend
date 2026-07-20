@@ -58,6 +58,11 @@ function BatchJobs() {
   const [usaStockIndicatorsLoading, setUsaStockIndicatorsLoading] = useState(false);
   const [usaStockIndicatorsError, setUsaStockIndicatorsError] = useState(null);
   const [usaStockIndicatorsResult, setUsaStockIndicatorsResult] = useState(null);
+  const [usaEtfIndicatorsEndDate, setUsaEtfIndicatorsEndDate] = useState(getTodayYyyyMmDd);
+  const [usaEtfIndicatorsTicker, setUsaEtfIndicatorsTicker] = useState('');
+  const [usaEtfIndicatorsLoading, setUsaEtfIndicatorsLoading] = useState(false);
+  const [usaEtfIndicatorsError, setUsaEtfIndicatorsError] = useState(null);
+  const [usaEtfIndicatorsResult, setUsaEtfIndicatorsResult] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -296,6 +301,40 @@ function BatchJobs() {
     }
   };
 
+  const handleRunUsaEtfIndicatorsSync = async () => {
+    if (!usaEtfIndicatorsEndDate.trim()) {
+      setUsaEtfIndicatorsError('종료일을 선택해주세요.');
+      return;
+    }
+    setUsaEtfIndicatorsLoading(true);
+    setUsaEtfIndicatorsError(null);
+    setUsaEtfIndicatorsResult(null);
+    try {
+      const payload = {
+        end: toYyyyMmDd(usaEtfIndicatorsEndDate),
+      };
+      const ticker = usaEtfIndicatorsTicker.trim();
+      if (ticker) {
+        payload.ticker = ticker;
+      }
+      const res = await fetch(`${BATCH_JOBS_API}/sync-usa-etfs-technical-indicators/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = Array.isArray(data.detail) ? data.detail[0]?.msg : data.detail;
+        throw new Error(msg || '실행 요청 실패');
+      }
+      setUsaEtfIndicatorsResult(data);
+    } catch (err) {
+      setUsaEtfIndicatorsError(err.message || '실행 요청에 실패했습니다.');
+    } finally {
+      setUsaEtfIndicatorsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen space-y-6">
       <div>
@@ -445,7 +484,7 @@ function BatchJobs() {
             DART &apos;단일판매ㆍ공급계약체결&apos; 공시 요약(거래일 오후 8시 작업)
           </h2>
           <p className="text-wealth-muted text-sm mb-4">
-            해당 날짜의 단일판매ㆍ공급계약체결 공시를 조회하여 요약 후 logs/dart_contract_summary에 저장합니다.
+            해당 날짜의 단일판매ㆍ공급계약체결 공시를 조회하여 요약 후 kr_stocks_disclosure_history에 저장합니다.
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <div>
@@ -656,6 +695,64 @@ function BatchJobs() {
               {usaStockIndicatorsResult.message}
               {usaStockIndicatorsResult.end ? ` (종료일: ${usaStockIndicatorsResult.end})` : ''}
               {usaStockIndicatorsResult.ticker ? ` (티커: ${usaStockIndicatorsResult.ticker})` : ''}
+            </div>
+          )}
+        </div>
+
+        {/* 미국 ETF 기술지표 동기화 */}
+        <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">
+          <h2 className="text-lg font-bold text-white mb-4">
+            미국 ETF 기술지표 동기화
+          </h2>
+          <p className="text-wealth-muted text-sm mb-4">
+            FinanceDataReader로 usa_etfs 일봉(종료일 기준 2개월)을 조회해 RSI·MACD·BB 등
+            스냅샷을 갱신합니다. 티커를 비우면 전 종목을 처리합니다.
+            (명령:{' '}
+            <code className="text-xs bg-black/30 px-1 rounded whitespace-nowrap">
+              python -m app.import.sync_usa_etfs_technical_indicators
+            </code>
+            )
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-wealth-muted text-xs mb-1">종료일 (--end)</label>
+              <input
+                type="date"
+                value={usaEtfIndicatorsEndDate}
+                onChange={(e) => setUsaEtfIndicatorsEndDate(e.target.value)}
+                className="px-3 py-2 bg-wealth-card border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+              />
+            </div>
+            <div>
+              <label className="block text-wealth-muted text-xs mb-1">티커 (선택)</label>
+              <input
+                type="text"
+                value={usaEtfIndicatorsTicker}
+                onChange={(e) => setUsaEtfIndicatorsTicker(e.target.value.toUpperCase())}
+                placeholder="예: QYLD"
+                autoComplete="off"
+                className="px-3 py-2 bg-wealth-card border border-gray-700 rounded-lg text-white text-sm w-28 focus:outline-none focus:ring-2 focus:ring-wealth-gold"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleRunUsaEtfIndicatorsSync}
+              disabled={usaEtfIndicatorsLoading}
+              className="px-4 py-2 bg-wealth-gold hover:bg-yellow-600 text-wealth-dark font-medium rounded-lg transition-colors disabled:opacity-50"
+            >
+              {usaEtfIndicatorsLoading ? '실행 중...' : '실행'}
+            </button>
+          </div>
+          {usaEtfIndicatorsError && (
+            <div className="mt-4 bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400 text-sm">
+              {usaEtfIndicatorsError}
+            </div>
+          )}
+          {usaEtfIndicatorsResult && (
+            <div className="mt-4 bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm">
+              {usaEtfIndicatorsResult.message}
+              {usaEtfIndicatorsResult.end ? ` (종료일: ${usaEtfIndicatorsResult.end})` : ''}
+              {usaEtfIndicatorsResult.ticker ? ` (티커: ${usaEtfIndicatorsResult.ticker})` : ''}
             </div>
           )}
         </div>

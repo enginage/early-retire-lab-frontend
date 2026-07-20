@@ -12,6 +12,7 @@ import FinancialInstitutionSelector from '../../components/FinancialInstitutionS
 import KRStockSelector from '../../components/KRStockSelector';
 import DomesticETFSelector from '../../components/DomesticETFSelector';
 import USAStockSelector from '../../components/USAStockSelector';
+import USAETFSelector from '../../components/USAETFSelector';
 import { getApiUrl, getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
 import {
   fetchDomesticEtfFilterCommonCodesCached,
@@ -70,6 +71,7 @@ function assetKindLabel(kind) {
   if (kind === 'kr_stock') return '국내주식';
   if (kind === 'domestic_etf') return '국내ETF';
   if (kind === 'usa_stock') return '미장주식';
+  if (kind === 'usa_etf') return '미국ETF';
   return kind || '-';
 }
 
@@ -164,6 +166,7 @@ export default function AssetIndicatorManagement() {
   const [showKrSelector, setShowKrSelector] = useState(false);
   const [showEtfSelector, setShowEtfSelector] = useState(false);
   const [showUsaStockSelector, setShowUsaStockSelector] = useState(false);
+  const [showUsaEtfSelector, setShowUsaEtfSelector] = useState(false);
   const [openPdfHoldingId, setOpenPdfHoldingId] = useState(null);
   const [pdfState, setPdfState] = useState({
     status: 'idle',
@@ -614,6 +617,14 @@ export default function AssetIndicatorManagement() {
               >
                 + 미장주식
               </button>
+              <button
+                type="button"
+                onClick={() => setShowUsaEtfSelector(true)}
+                disabled={holdingsLoading}
+                className="px-3 py-2 text-sm bg-wealth-card border border-gray-600 rounded-lg text-white hover:border-wealth-gold disabled:opacity-50"
+              >
+                + 미국ETF
+              </button>
             </div>
           </div>
 
@@ -709,7 +720,7 @@ export default function AssetIndicatorManagement() {
                 ) : holdings.length === 0 ? (
                   <tr>
                     <td colSpan={13} className="py-6 text-center text-wealth-muted">
-                      보유종목이 없습니다. 국내주식, 국내ETF 또는 미장주식을 추가하세요.
+                      보유종목이 없습니다. 국내주식, 국내ETF, 미장주식 또는 미국ETF를 추가하세요.
                     </td>
                   </tr>
                 ) : (
@@ -927,6 +938,15 @@ export default function AssetIndicatorManagement() {
         onSelect={(stock) => {
           addHolding('usa_stock', stock.id);
           setShowUsaStockSelector(false);
+        }}
+      />
+
+      <USAETFSelector
+        isOpen={showUsaEtfSelector}
+        onClose={() => setShowUsaEtfSelector(false)}
+        onSelect={(etf) => {
+          addHolding('usa_etf', etf.id);
+          setShowUsaEtfSelector(false);
         }}
       />
     </div>

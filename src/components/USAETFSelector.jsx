@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getApiUrl, API_ENDPOINTS } from '../utils/api';
 
-const API_BASE_URL = getApiUrl(API_ENDPOINTS.USA_ETFS);
+const API_BASE_URL = getApiUrl(`${API_ENDPOINTS.USA_ETFS}/selector`);
 
 // 모듈 레벨 캐시: 앱 전체에서 공유되는 미국ETF 목록 캐시
 let usaEtfCache = null;
@@ -169,7 +169,7 @@ export const ensureUSAETFCache = async () => {
 
   try {
     isLoadingUsaEtfCache = true;
-    const apiUrl = getApiUrl(API_ENDPOINTS.USA_ETFS);
+    const apiUrl = getApiUrl(`${API_ENDPOINTS.USA_ETFS}/selector`);
     usaEtfCachePromise = fetch(`${apiUrl}?skip=0&limit=10000`, {
       method: 'GET',
       headers: {

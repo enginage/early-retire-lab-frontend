@@ -6,7 +6,10 @@ import {
   applyRsiThresholdInput,
   fetchUsaIndustryCommonCodesCached,
 } from './investmentIndicatorFilters';
-import { fetchUsaStocksIndicatorsPage } from './investmentIndicatorsDataCache';
+import {
+  fetchUsaStocksIndicatorsPage,
+  fetchUsaStockIndicatorReferenceDateCached,
+} from './investmentIndicatorsDataCache';
 
 const PAGE_SIZE = 30;
 
@@ -32,6 +35,15 @@ function formatFluctuationRate(v) {
   const n = Number(v);
   if (Number.isNaN(n)) return '-';
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+}
+
+function formatReferenceDate(isoDate) {
+  const d = new Date(isoDate);
+  if (Number.isNaN(d.getTime())) return '-';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}.${m}.${day}`;
 }
 
 function fluctuationRateColor(v) {
@@ -187,6 +199,7 @@ function PaginationControls({ page, total, onPageChange }) {
 export default function UsaStockIndicatorsView() {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
+  const [referenceDate, setReferenceDate] = useState(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -228,6 +241,21 @@ export default function UsaStockIndicatorsView() {
       .catch((err) => {
         console.error(err);
         if (!cancelled) setIndustryDetails([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchUsaStockIndicatorReferenceDateCached()
+      .then((date) => {
+        if (!cancelled) setReferenceDate(date);
+      })
+      .catch((err) => {
+        console.error(err);
+        if (!cancelled) setReferenceDate(null);
       });
     return () => {
       cancelled = true;
@@ -605,11 +633,18 @@ export default function UsaStockIndicatorsView() {
       </div>
 
       <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-4 flex flex-col">
-        <p className="text-xs text-wealth-muted shrink-0 mb-2">
-          전체{' '}
-          <span className="text-wealth-gold tabular-nums">{total}</span>
-          건
-        </p>
+        <div className="flex items-center justify-between shrink-0 mb-2">
+          <p className="text-xs text-wealth-muted">
+            전체{' '}
+            <span className="text-wealth-gold tabular-nums">{total}</span>
+            건
+          </p>
+          {referenceDate ? (
+            <span className="text-xs text-wealth-muted tabular-nums">
+              기준일: {formatReferenceDate(referenceDate)}
+            </span>
+          ) : null}
+        </div>
         {loading ? (
           <div className="text-center py-8 text-wealth-muted flex-1">로딩 중…</div>
         ) : (

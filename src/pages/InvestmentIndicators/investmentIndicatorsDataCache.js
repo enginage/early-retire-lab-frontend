@@ -1,4 +1,4 @@
-import { getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
+import { getApiUrl, getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
 
 const KR_STOCKS_URL = getStocksRestApiUrl(API_ENDPOINTS.KR_STOCKS);
 const USA_STOCKS_URL = getStocksRestApiUrl(API_ENDPOINTS.USA_STOCKS);
@@ -22,11 +22,18 @@ const DOMESTIC_ETFS_MAX_PAGES = 3;
 const KR_STOCKS_INDICATORS_PAGE_SIZE = 30;
 const USA_STOCKS_INDICATORS_PAGE_SIZE = 30;
 
+const BATCH_FINAL_DATE_MANAGEMENT_URL = getApiUrl(
+  API_ENDPOINTS.BATCH_FINAL_DATE_MANAGEMENT
+);
+
 let domesticEtfsIndicatorsCache = null;
 let domesticEtfsIndicatorsPromise = null;
 
 let domesticEtfReferenceDateCache = null;
 let domesticEtfReferenceDatePromise = null;
+
+let usaStockIndicatorReferenceDateCache = null;
+let usaStockIndicatorReferenceDatePromise = null;
 
 let assetManagementInstCache = null;
 let assetManagementInstPromise = null;
@@ -255,6 +262,34 @@ export async function fetchDomesticEtfReferenceDateCached() {
   return domesticEtfReferenceDatePromise;
 }
 
+/** 미국 상장 기업 기술 지표 기준일 — 배치 최종일자 관리 테이블 */
+export async function fetchUsaStockIndicatorReferenceDateCached() {
+  if (usaStockIndicatorReferenceDateCache) {
+    return usaStockIndicatorReferenceDateCache;
+  }
+  if (usaStockIndicatorReferenceDatePromise) {
+    return usaStockIndicatorReferenceDatePromise;
+  }
+
+  usaStockIndicatorReferenceDatePromise = (async () => {
+    const res = await fetch(
+      `${BATCH_FINAL_DATE_MANAGEMENT_URL}/usa-stock-indicators`
+    );
+    if (!res.ok) {
+      throw new Error(`기준일 조회 실패: ${res.status}`);
+    }
+    const data = await res.json();
+    usaStockIndicatorReferenceDateCache = data?.date ?? null;
+    usaStockIndicatorReferenceDatePromise = null;
+    return usaStockIndicatorReferenceDateCache;
+  })().catch((err) => {
+    usaStockIndicatorReferenceDatePromise = null;
+    throw err;
+  });
+
+  return usaStockIndicatorReferenceDatePromise;
+}
+
 /** domestic_etfs.asset_manager 필터용 자산운용사 목록 */
 export async function fetchAssetManagementInstCached() {
   if (assetManagementInstCache) {
@@ -287,7 +322,10 @@ export function preloadKrMarketIndicatorsData() {
 
 /** 미국 상장 기업 기술 지표 화면 전용 preload (첫 페이지) */
 export function preloadUsaStockIndicatorsData() {
-  return Promise.allSettled([fetchUsaStocksIndicatorsPage()]);
+  return Promise.allSettled([
+    fetchUsaStocksIndicatorsPage(),
+    fetchUsaStockIndicatorReferenceDateCached(),
+  ]);
 }
 
 /** 국내 상장 ETF 기술 지표 화면 전용 preload */
