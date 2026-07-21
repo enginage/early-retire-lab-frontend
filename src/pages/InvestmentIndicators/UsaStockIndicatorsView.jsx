@@ -405,7 +405,7 @@ export default function UsaStockIndicatorsView() {
   };
 
   return (
-    <div className="max-w-[95%] mx-auto px-6 py-8">
+    <div className="w-full">
       <h2 className="text-xl font-semibold text-white mb-2">미국 상장 기업 기술 지표</h2>
 
       {error && (

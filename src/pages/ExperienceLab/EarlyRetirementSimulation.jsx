@@ -512,7 +512,7 @@ function EarlyRetirementSimulation() {
 
   return (
     <div className="min-h-screen bg-wealth-dark pb-20">
-      <div className="max-w-[95%] mx-auto px-6 py-8">
+      <div className="w-full">
         <div className="space-y-8">
           {/* 헤더 */}
           <div className="bg-wealth-card/50 backdrop-blur-sm rounded-xl border border-gray-800 shadow-xl p-6">

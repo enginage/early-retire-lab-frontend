@@ -17,7 +17,7 @@ export default function SeoContentSection({ title, paragraphs, steps, faqs }) {
   }, [title]);
 
   return (
-    <div className="max-w-[95%] mx-auto px-4 sm:px-6 pt-6 pb-2 border-b border-gray-800/80">
+    <div className="w-full px-4 sm:px-6 pt-6 pb-2 border-b border-gray-800/80">
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}

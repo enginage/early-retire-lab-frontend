@@ -1,29 +1,17 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  KAKAO_ADFIT_BANNER,
-  KAKAO_ADFIT_ONFAIL_CALLBACK,
+  KAKAO_ADFIT_ONFAIL_CALLBACK_FOOTER,
+  KAKAO_ADFIT_ONFAIL_CALLBACK_SIDEBAR,
+  KAKAO_ADFIT_ONFAIL_CALLBACK_TOP,
   KAKAO_ADFIT_SCRIPT_URL,
+  getKakaoAdFitBanner,
+  getKakaoAdFitOnFailCallback,
 } from '../config/adFit';
 
-const SCRIPT_ID = 'kakao-adfit-ba-script';
+function registerOnFailCallback(callbackName) {
+  if (typeof window === 'undefined' || window[callbackName]) return;
 
-function loadScriptAfterIns(ins) {
-  const existing = document.getElementById(SCRIPT_ID);
-  if (existing) {
-    existing.remove();
-  }
-
-  const script = document.createElement('script');
-  script.id = SCRIPT_ID;
-  script.async = true;
-  script.type = 'text/javascript';
-  script.charset = 'utf-8';
-  script.src = KAKAO_ADFIT_SCRIPT_URL;
-  ins.insertAdjacentElement('afterend', script);
-}
-
-if (typeof window !== 'undefined' && !window[KAKAO_ADFIT_ONFAIL_CALLBACK]) {
-  window[KAKAO_ADFIT_ONFAIL_CALLBACK] = (insEl) => {
+  window[callbackName] = (insEl) => {
     if (insEl) {
       insEl.style.display = 'none';
     }
@@ -34,37 +22,54 @@ if (typeof window !== 'undefined' && !window[KAKAO_ADFIT_ONFAIL_CALLBACK]) {
   };
 }
 
-export default function KakaoAdFit() {
+registerOnFailCallback(KAKAO_ADFIT_ONFAIL_CALLBACK_TOP);
+registerOnFailCallback(KAKAO_ADFIT_ONFAIL_CALLBACK_FOOTER);
+registerOnFailCallback(KAKAO_ADFIT_ONFAIL_CALLBACK_SIDEBAR);
+
+/** @param {{ slot?: 'top' | 'footer' | 'sidebar' }} props */
+export default function KakaoAdFit({ slot = 'top' }) {
   const insRef = useRef(null);
+  const banner = getKakaoAdFitBanner(slot);
+  const onFailCallback = getKakaoAdFitOnFailCallback(slot);
+
+  let wrapperClassName = 'flex justify-center overflow-x-auto mb-4 min-h-[90px]';
+  if (slot === 'footer') {
+    wrapperClassName = 'flex justify-center overflow-x-auto mt-6 mb-4 min-h-[90px]';
+  } else if (slot === 'sidebar') {
+    wrapperClassName =
+      'hidden lg:flex justify-center w-[160px] shrink-0 min-h-[600px] sticky top-4 self-start';
+  }
 
   useEffect(() => {
     const ins = insRef.current;
     if (!ins) return undefined;
 
-    loadScriptAfterIns(ins);
+    const script = document.createElement('script');
+    script.async = true;
+    script.type = 'text/javascript';
+    script.charset = 'utf-8';
+    script.src = KAKAO_ADFIT_SCRIPT_URL;
+    ins.insertAdjacentElement('afterend', script);
 
     return () => {
-      const script = document.getElementById(SCRIPT_ID);
-      if (script) {
-        script.remove();
-      }
+      script.remove();
     };
   }, []);
 
   return (
     <div
       data-adfit-wrapper
-      className="flex justify-center overflow-x-auto mb-4 min-h-[90px]"
+      className={wrapperClassName}
       aria-label="광고"
     >
       <ins
         ref={insRef}
         className="kakao_ad_area"
         style={{ display: 'none', width: '100%' }}
-        data-ad-unit={KAKAO_ADFIT_BANNER.unit}
-        data-ad-width={KAKAO_ADFIT_BANNER.width}
-        data-ad-height={KAKAO_ADFIT_BANNER.height}
-        data-ad-onfail={KAKAO_ADFIT_ONFAIL_CALLBACK}
+        data-ad-unit={banner.unit}
+        data-ad-width={banner.width}
+        data-ad-height={banner.height}
+        data-ad-onfail={onFailCallback}
       />
     </div>
   );
