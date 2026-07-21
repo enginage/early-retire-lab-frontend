@@ -1,4 +1,4 @@
-import { getApiUrl, getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
+import { getStocksRestApiUrl, API_ENDPOINTS } from '../../utils/api';
 
 const KR_STOCKS_URL = getStocksRestApiUrl(API_ENDPOINTS.KR_STOCKS);
 const USA_STOCKS_URL = getStocksRestApiUrl(API_ENDPOINTS.USA_STOCKS);
@@ -22,7 +22,7 @@ const DOMESTIC_ETFS_MAX_PAGES = 3;
 const KR_STOCKS_INDICATORS_PAGE_SIZE = 30;
 const USA_STOCKS_INDICATORS_PAGE_SIZE = 30;
 
-const BATCH_FINAL_DATE_MANAGEMENT_URL = getApiUrl(
+const BATCH_FINAL_DATE_MANAGEMENT_URL = getStocksRestApiUrl(
   API_ENDPOINTS.BATCH_FINAL_DATE_MANAGEMENT
 );
 
